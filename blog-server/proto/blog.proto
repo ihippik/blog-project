@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package blog;
+
+// Message Post definition
+message Post {
+  string id = 1;
+  string name = 2;
+  int32 count = 3;
+}
+
+message User {
+  string id = 1;
+  string name = 2;
+  string email = 3;
+}
+
+message GetPostRequest{
+  string id =1;
+}
+
+message RegisterRequest{
+  string name = 1;
+  string email = 2;
+}
+
+message RegisterResponse{
+  User user =1;
+}
+
+message LoginRequest{
+  string email = 1;
+  string password = 2;
+}
+
+message LoginResponse{
+  string token = 1;
+}
+
+message ListPostRequest{}
+
+message EmptyResponse{}
+
+message ListPostsResponse{
+  repeated Post posts = 1;
+}
+
+message PostResponse {
+  string result = 1;
+  bool success = 2;
+}
+
+// Blog service definition
+service BlogService {
+  // auth
+  rpc Register (RegisterRequest) returns (RegisterResponse);
+  rpc Login (LoginRequest) returns (LoginResponse);
+  // posts
+  rpc GetPost (GetPostRequest) returns (PostResponse);
+  rpc ListPosts (ListPostRequest) returns (ListPostsResponse);
+  rpc UpdatePost (GetPostRequest) returns (PostResponse);
+  rpc DeletePost (GetPostRequest) returns (EmptyResponse);
+  rpc CreatePost (Post) returns (PostResponse);
+}
