@@ -8,6 +8,7 @@ use std::sync::Arc;
 use actix_cors::Cors;
 use actix_web::middleware::{DefaultHeaders, Logger};
 use actix_web::{App, HttpServer, web};
+use tracing::debug;
 use crate::application::auth_service::AuthService;
 use crate::data::user_repository::PostgresUserRepository;
 use crate::infrastructure::config::AppConfig;

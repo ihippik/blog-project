@@ -1,8 +1,11 @@
 use tracing_subscriber::{EnvFilter, fmt};
+use tracing_log::LogTracer;
 
 pub fn init_logging(format: String) {
+    LogTracer::init().expect("failed to set LogTracer");
+
     let filter = EnvFilter::try_from_default_env()
-        .or_else(|_| EnvFilter::try_new("info,blog-server=debug"))
+        .or_else(|_| EnvFilter::try_new("info,blog_server=debug"))
         .unwrap();
 
     if format == "json" {
