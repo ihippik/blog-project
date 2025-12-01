@@ -29,13 +29,15 @@ impl UserRepository for PostgresUserRepository {
     async fn create(&self, user: User) -> Result<User, DomainError> {
         sqlx::query(
             r#"
-            INSERT INTO users (id, email, password_hash)
-            VALUES ($1, $2, $3)
+            INSERT INTO users (id, username, email, password_hash, created_at)
+            VALUES ($1, $2, $3, $4, $5)
             "#,
         )
         .bind(user.id)
+        .bind(&user.username)
         .bind(&user.email)
         .bind(&user.password_hash)
+        .bind(&user.created_at)
         .execute(&self.pool)
         .await
         .map_err(|e| {

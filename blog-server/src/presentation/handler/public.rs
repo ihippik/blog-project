@@ -8,6 +8,8 @@ use tracing::info;
 
 pub fn scope() -> Scope {
     web::scope("").route("/health", web::get().to(health))
+        .service(register)
+        .service(login)
 }
 
 async fn health() -> impl Responder {

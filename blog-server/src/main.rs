@@ -4,13 +4,16 @@ mod domain;
 mod infrastructure;
 mod presentation;
 
+use std::sync::Arc;
 use actix_cors::Cors;
 use actix_web::middleware::{DefaultHeaders, Logger};
 use actix_web::{App, HttpServer, web};
-
+use crate::application::auth_service::AuthService;
+use crate::data::user_repository::PostgresUserRepository;
 use crate::infrastructure::config::AppConfig;
 use crate::infrastructure::database::{create_pool, run_migrations};
 use crate::infrastructure::logging::init_logging;
+use crate::infrastructure::security::JwtKeys;
 use crate::presentation::handler;
 use crate::presentation::middleware::RequestIdMiddleware;
 
@@ -30,6 +33,9 @@ async fn main() -> std::io::Result<()> {
 
     let config_data = config.clone();
 
+    let user_repo = Arc::new(PostgresUserRepository::new(pool.clone()));
+    let auth_service = AuthService::new(Arc::clone(&user_repo), JwtKeys::new(config.jwt_secret.clone()));
+
     HttpServer::new(move || {
         let cors = build_cors(&config_data);
         App::new()
@@ -43,8 +49,9 @@ async fn main() -> std::io::Result<()> {
                     .add(("Cross-Origin-Opener-Policy", "same-origin")),
             )
             .wrap(cors)
-            .service(web::scope("/").service(handler::public::scope()))
-            .service(web::scope("/api").service(handler::protected::scope()))
+            .app_data(web::Data::new(auth_service.clone()))
+            .service(web::scope("/api").service(handler::public::scope()))
+            // .service(web::scope("/api").service(handler::protected::scope()))
     })
     .bind((config.host.as_str(), config.port))?
     .run()
