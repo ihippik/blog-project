@@ -4,11 +4,6 @@ mod domain;
 mod infrastructure;
 mod presentation;
 
-use std::sync::Arc;
-use actix_cors::Cors;
-use actix_web::middleware::{DefaultHeaders, Logger};
-use actix_web::{App, HttpServer, web};
-use tracing::debug;
 use crate::application::auth_service::AuthService;
 use crate::data::user_repository::PostgresUserRepository;
 use crate::infrastructure::config::AppConfig;
@@ -16,7 +11,12 @@ use crate::infrastructure::database::{create_pool, run_migrations};
 use crate::infrastructure::logging::init_logging;
 use crate::infrastructure::security::JwtKeys;
 use crate::presentation::handler;
-use crate::presentation::middleware::RequestIdMiddleware;
+use crate::presentation::middleware::{JwtAuthMiddleware, RequestIdMiddleware};
+use actix_cors::Cors;
+use actix_web::middleware::{DefaultHeaders, Logger};
+use actix_web::{App, HttpServer, web};
+use std::sync::Arc;
+use tracing::debug;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -35,7 +35,10 @@ async fn main() -> std::io::Result<()> {
     let config_data = config.clone();
 
     let user_repo = Arc::new(PostgresUserRepository::new(pool.clone()));
-    let auth_service = AuthService::new(Arc::clone(&user_repo), JwtKeys::new(config.jwt_secret.clone()));
+    let auth_service = AuthService::new(
+        Arc::clone(&user_repo),
+        JwtKeys::new(config.jwt_secret.clone()),
+    );
 
     HttpServer::new(move || {
         let cors = build_cors(&config_data);
@@ -51,8 +54,15 @@ async fn main() -> std::io::Result<()> {
             )
             .wrap(cors)
             .app_data(web::Data::new(auth_service.clone()))
-            .service(web::scope("/api").service(handler::public::scope()))
-            // .service(web::scope("/api").service(handler::protected::scope()))
+            .service(
+                web::scope("/api")
+                    .service(web::scope("/public").service(handler::public::scope()))
+                    .service(
+                        web::scope("/protected")
+                            .wrap(JwtAuthMiddleware::new(auth_service.keys().clone()))
+                            .service(handler::protected::scope()),
+                    ),
+            )
     })
     .bind((config.host.as_str(), config.port))?
     .run()

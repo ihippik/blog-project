@@ -1,7 +1,8 @@
-use tracing_subscriber::{EnvFilter, fmt};
 use tracing_log::LogTracer;
+use tracing_subscriber::{EnvFilter, fmt};
 
 pub fn init_logging(format: String) {
+    // setup logger globally.
     LogTracer::init().expect("failed to set LogTracer");
 
     let filter = EnvFilter::try_from_default_env()

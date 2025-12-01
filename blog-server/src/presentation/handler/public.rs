@@ -1,13 +1,14 @@
-use actix_web::{HttpResponse, Responder, Scope, post, web};
-use chrono::Utc;
 use crate::application::auth_service::AuthService;
 use crate::data::user_repository::PostgresUserRepository;
 use crate::domain::error::DomainError;
 use crate::presentation::dto::{HealthResponse, LoginRequest, RegisterRequest, TokenResponse};
+use actix_web::{HttpResponse, Responder, Scope, post, web};
+use chrono::Utc;
 use tracing::info;
 
 pub fn scope() -> Scope {
-    web::scope("").route("/health", web::get().to(health))
+    web::scope("")
+        .route("/health", web::get().to(health))
         .service(register)
         .service(login)
 }
@@ -25,7 +26,11 @@ async fn register(
     payload: web::Json<RegisterRequest>,
 ) -> Result<impl Responder, DomainError> {
     let user = service
-        .register(payload.username.clone(), payload.email.clone(), payload.password.clone())
+        .register(
+            payload.username.clone(),
+            payload.email.clone(),
+            payload.password.clone(),
+        )
         .await?;
 
     info!(user_id = %user.id, email = %user.email, "user registered");

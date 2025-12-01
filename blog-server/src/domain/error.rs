@@ -1,9 +1,9 @@
 use actix_web::http::StatusCode;
 use actix_web::{HttpResponse, ResponseError};
 use serde::Serialize;
+use serde_json::json;
 use thiserror::Error;
 use uuid::Uuid;
-use serde_json::json;
 
 #[derive(Debug, Error)]
 pub enum DomainError {

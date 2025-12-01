@@ -3,9 +3,9 @@ use std::sync::Arc;
 use tracing::instrument;
 
 use crate::data::user_repository::UserRepository;
-use crate::domain::{user::User};
 use crate::domain::error::DomainError;
-use crate::infrastructure::security::{hash_password, verify_password, JwtKeys};
+use crate::domain::user::User;
+use crate::infrastructure::security::{JwtKeys, hash_password, verify_password};
 
 #[derive(Clone)]
 pub struct AuthService<R: UserRepository + 'static> {
@@ -24,7 +24,7 @@ where
     pub fn keys(&self) -> &JwtKeys {
         &self.keys
     }
-    
+
     pub async fn get_user(&self, id: uuid::Uuid) -> Result<User, DomainError> {
         self.repo
             .find_by_id(id)
@@ -34,8 +34,14 @@ where
     }
 
     #[instrument(skip(self))]
-    pub async fn register(&self, username: String, email: String, password: String) -> Result<User, DomainError> {
-        let hash = hash_password(&password).map_err(|err| DomainError::Internal(err.to_string()))?;
+    pub async fn register(
+        &self,
+        username: String,
+        email: String,
+        password: String,
+    ) -> Result<User, DomainError> {
+        let hash =
+            hash_password(&password).map_err(|err| DomainError::Internal(err.to_string()))?;
         let user = User::new(username.to_lowercase(), email.to_lowercase(), hash);
         self.repo.create(user).await.map_err(DomainError::from)
     }
@@ -52,7 +58,9 @@ where
         let valid = verify_password(password, &user.password_hash)
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         if !valid {
-            return Err(DomainError::Forbidden("email / pass are incorrect".to_string()));
+            return Err(DomainError::Forbidden(
+                "email / pass are incorrect".to_string(),
+            ));
         }
 
         self.keys
@@ -60,5 +68,3 @@ where
             .map_err(|err| DomainError::Internal(err.to_string()))
     }
 }
-
-

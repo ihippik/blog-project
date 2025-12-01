@@ -1,13 +1,15 @@
-use actix_web::{HttpResponse, Responder, Scope, post, web};
+use actix_web::{HttpResponse, Responder, Scope, get, web};
 use chrono::Utc;
 
 use crate::presentation::dto::HealthResponse;
+use crate::presentation::middleware::JwtAuthMiddleware;
 
 pub fn scope() -> Scope {
-    web::scope("").route("/health", web::get().to(health))
+    web::scope("").service(check)
 }
 
-async fn health() -> impl Responder {
+#[get("/blogs/check")]
+async fn check() -> impl Responder {
     HttpResponse::Ok().json(HealthResponse {
         status: "ok!",
         timestamp: Utc::now(),
