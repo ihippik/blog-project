@@ -4,10 +4,23 @@ use uuid::Uuid;
 
 #[derive(Serialize, Deserialize)]
 pub struct User {
-    id: Uuid,
-    username: String,
-    email: String,
-    password_hash: String,
-    created_at: DateTime<Utc>,
-    deleted_at: Option<DateTime<Utc>>,
+    pub id: Uuid,
+    pub username: String,
+    pub email: String,
+    pub password_hash: String,
+    pub created_at: DateTime<Utc>,
+    pub deleted_at: Option<DateTime<Utc>>,
+}
+
+impl User {
+    pub fn new(username: String,email: String, password_hash: String) -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            username,
+            email,
+            password_hash,
+            created_at: Utc::now(),
+            deleted_at: None,
+        }
+    }
 }

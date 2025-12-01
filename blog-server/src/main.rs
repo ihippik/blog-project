@@ -43,7 +43,8 @@ async fn main() -> std::io::Result<()> {
                     .add(("Cross-Origin-Opener-Policy", "same-origin")),
             )
             .wrap(cors)
-            .service(web::scope("/api").service(handler::public::scope()))
+            .service(web::scope("/").service(handler::public::scope()))
+            .service(web::scope("/api").service(handler::protected::scope()))
     })
     .bind((config.host.as_str(), config.port))?
     .run()
