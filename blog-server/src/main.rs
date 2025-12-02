@@ -16,7 +16,8 @@ use actix_cors::Cors;
 use actix_web::middleware::{DefaultHeaders, Logger};
 use actix_web::{App, HttpServer, web};
 use std::sync::Arc;
-use tracing::debug;
+use crate::application::post_service::PostService;
+use crate::data::post_repository::PostgresPostRepository;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -35,10 +36,12 @@ async fn main() -> std::io::Result<()> {
     let config_data = config.clone();
 
     let user_repo = Arc::new(PostgresUserRepository::new(pool.clone()));
+    let post_repo = Arc::new(PostgresPostRepository::new(pool.clone()));
     let auth_service = AuthService::new(
         Arc::clone(&user_repo),
         JwtKeys::new(config.jwt_secret.clone()),
     );
+    let post_service = PostService::new(Arc::clone(&post_repo));
 
     HttpServer::new(move || {
         let cors = build_cors(&config_data);
@@ -54,6 +57,7 @@ async fn main() -> std::io::Result<()> {
             )
             .wrap(cors)
             .app_data(web::Data::new(auth_service.clone()))
+            .app_data(web::Data::new(post_service.clone()))
             .service(
                 web::scope("/api")
                     .service(web::scope("/public").service(handler::public::scope()))
