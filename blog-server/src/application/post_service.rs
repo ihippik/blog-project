@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-use tracing::instrument;
-
 use crate::data::post_repository::PostRepository;
 use crate::domain::error::DomainError;
 use crate::domain::post::Post;
@@ -16,7 +14,7 @@ where
     R: PostRepository + 'static,
 {
     pub fn new(repo: Arc<R>) -> Self {
-        Self { repo}
+        Self { repo }
     }
 
     pub async fn get_post(&self, id: uuid::Uuid) -> Result<Post, DomainError> {
@@ -24,7 +22,7 @@ where
             .get(id)
             .await
             .map_err(DomainError::from)?
-            .ok_or_else(|| DomainError::UserNotFound(format!("user {}", id)))
+            .ok_or_else(|| DomainError::PostNotFound(format!("post id: {}", id)))
     }
 
     pub async fn list_posts(&self, author_id: uuid::Uuid) -> Result<Vec<Post>, DomainError> {

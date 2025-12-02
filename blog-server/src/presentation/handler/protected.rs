@@ -1,15 +1,16 @@
-use actix_web::{HttpResponse, Responder, Scope, get, web, HttpRequest, HttpMessage};
-use chrono::Utc;
-use tracing::info;
 use crate::application::post_service::PostService;
 use crate::data::post_repository::PostgresPostRepository;
 use crate::domain::error::DomainError;
 use crate::presentation::auth::AuthenticatedUser;
-use crate::presentation::dto::{HealthResponse, PostResponse};
-use crate::presentation::middleware::JwtAuthMiddleware;
+use crate::presentation::dto::{PostResponse};
+use actix_web::{HttpMessage, HttpRequest, HttpResponse, Responder, Scope, get, web};
+use tracing::info;
+use uuid::Uuid;
 
 pub fn scope() -> Scope {
-    web::scope("").service(list_posts)
+    web::scope("")
+        .service(list_posts)
+        .service(get_post)
 }
 
 #[get("/posts")]
@@ -26,6 +27,23 @@ async fn list_posts(
         author_id = %user.id,
         count = response.len(),
         "posts listed"
+    );
+
+    Ok(HttpResponse::Ok().json(response))
+}
+#[get("/posts/{id}")]
+async fn get_post(
+    req: HttpRequest,
+    post: web::Data<PostService<PostgresPostRepository>>,
+    path: web::Path<Uuid>,
+) -> Result<HttpResponse, DomainError> {
+    let post = post.get_post(path.into_inner()).await?;
+    let response = PostResponse::from(post);
+
+    info!(
+        request_id = %request_id(&req),
+        post_id = %response.id,
+        "posts have gotten"
     );
 
     Ok(HttpResponse::Ok().json(response))

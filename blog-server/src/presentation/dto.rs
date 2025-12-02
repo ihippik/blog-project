@@ -1,7 +1,7 @@
+use crate::domain::post::Post;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::domain::post::Post;
 
 #[derive(Debug, Deserialize)]
 pub struct RegisterRequest {

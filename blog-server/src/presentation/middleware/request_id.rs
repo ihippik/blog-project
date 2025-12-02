@@ -1,7 +1,7 @@
 use actix_service::{Service, Transform};
 use actix_web::dev::{ServiceRequest, ServiceResponse};
 use actix_web::http::header::{HeaderName, HeaderValue};
-use actix_web::{Error, HttpMessage, web};
+use actix_web::{Error, HttpMessage};
 use futures_util::future::LocalBoxFuture;
 use std::future::{Ready, ready};
 use std::task::{Context, Poll};

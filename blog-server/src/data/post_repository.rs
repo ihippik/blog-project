@@ -1,17 +1,17 @@
 use crate::domain::error::DomainError;
+use crate::domain::post::Post;
 use async_trait::async_trait;
+use sqlx::postgres::PgRow;
 use sqlx::{PgPool, Row};
 use tracing::{error, info};
 use uuid::Uuid;
-use crate::domain::post::Post;
-use sqlx::{postgres::PgRow};
 
 #[async_trait]
 pub trait PostRepository: Send + Sync {
     async fn create(&self, post: Post) -> Result<Post, DomainError>;
     async fn get(&self, id: Uuid) -> Result<Option<Post>, DomainError>;
     async fn delete(&self, id: Uuid) -> Result<(), DomainError>;
-    async fn list(&self,author_id: Uuid) -> Result<Vec<Post>, DomainError>;
+    async fn list(&self, author_id: Uuid) -> Result<Vec<Post>, DomainError>;
 }
 
 #[derive(Clone)]
@@ -44,7 +44,7 @@ impl PostRepository for PostgresPostRepository {
         .await
         .map_err(|e| {
             error!("failed to create user: {}", e);
-                DomainError::Internal(format!("database error: {}", e))
+            DomainError::Internal(format!("database error: {}", e))
         })?;
 
         info!(post_id = %post.id, title = %post.title, "post created");
@@ -76,16 +76,16 @@ impl PostRepository for PostgresPostRepository {
         }))
     }
 
-    async fn delete(&self, id: Uuid) -> Result<(),DomainError> {
+    async fn delete(&self, id: Uuid) -> Result<(), DomainError> {
         let result = sqlx::query!(
-        r#"
+            r#"
         DELETE FROM posts WHERE id = $1
         "#,
-        id
-    )
-            .execute(&self.pool)
-            .await
-            .map_err(|e| DomainError::Internal(e.to_string()))?;
+            id
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(|e| DomainError::Internal(e.to_string()))?;
 
         if result.rows_affected() == 0 {
             return Err(DomainError::PostNotFound(id.to_string()));
@@ -103,17 +103,15 @@ impl PostRepository for PostgresPostRepository {
             ORDER BY created_at DESC
             "#,
         )
-            .bind(author_id)
-            .fetch_all(&self.pool)
-            .await
-            .map_err(|e| {
-                error!("failed to list posts for author {}: {}", author_id, e);
-                DomainError::Internal(format!("database error: {}", e))
-            })?;
+        .bind(author_id)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| {
+            error!("failed to list posts for author {}: {}", author_id, e);
+            DomainError::Internal(format!("database error: {}", e))
+        })?;
 
-        rows.into_iter()
-            .map(map_row)
-            .collect::<Result<Vec<_>, _>>()
+        rows.into_iter().map(map_row).collect::<Result<Vec<_>, _>>()
     }
 }
 

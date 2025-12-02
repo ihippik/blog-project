@@ -24,8 +24,6 @@ impl AppConfig {
             .map_err(|_| anyhow::anyhow!("DATABASE_URL must be set"))?;
         let jwt_secret =
             std::env::var("JWT_SECRET").map_err(|_| anyhow::anyhow!("JWT_SECRET must be set"))?;
-        let exchange_api_url = std::env::var("EXCHANGE_API_URL")
-            .unwrap_or_else(|_| "https://api.exchangerate-api.com/v4/latest".into());
         let cors_origins = std::env::var("CORS_ORIGINS")
             .unwrap_or_else(|_| "*".into())
             .split(',')
