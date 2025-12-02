@@ -25,6 +25,15 @@ where
             .ok_or_else(|| DomainError::PostNotFound(format!("post id: {}", id)))
     }
 
+    pub async fn delete_post(&self, id: uuid::Uuid) -> Result<(), DomainError> {
+        self.repo
+            .delete(id)
+            .await
+            .map_err(DomainError::from)?;
+
+        Ok(())
+    }
+
     pub async fn list_posts(&self, author_id: uuid::Uuid) -> Result<Vec<Post>, DomainError> {
         self.repo.list(author_id).await.map_err(DomainError::from)
     }
