@@ -36,6 +36,12 @@ pub struct PostResponse {
     pub created_at: DateTime<Utc>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct CreatePostRequest {
+    pub title: String,
+    pub content: String,
+}
+
 impl From<Post> for PostResponse {
     fn from(post: Post) -> Self {
         Self {

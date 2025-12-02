@@ -9,6 +9,7 @@ use uuid::Uuid;
 #[async_trait]
 pub trait PostRepository: Send + Sync {
     async fn create(&self, post: Post) -> Result<Post, DomainError>;
+    async fn update(&self, post: Post) -> Result<Post, DomainError>;
     async fn get(&self, id: Uuid) -> Result<Option<Post>, DomainError>;
     async fn delete(&self, id: Uuid) -> Result<(), DomainError>;
     async fn list(&self, author_id: Uuid) -> Result<Vec<Post>, DomainError>;
@@ -48,6 +49,29 @@ impl PostRepository for PostgresPostRepository {
         })?;
 
         info!(post_id = %post.id, title = %post.title, "post created");
+        Ok(post)
+    }
+
+    async fn update(&self, post: Post) -> Result<Post, DomainError> {
+        sqlx::query(
+            r#"
+            UPDATE posts
+            SET title = $2, content = $3
+            WHERE id = $1
+            "#,
+        )
+        .bind(post.id)
+        .bind(&post.title)
+        .bind(&post.content)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| {
+            error!("failed to update post: {}", e);
+            DomainError::Internal(format!("database error: {}", e))
+        })?;
+
+        info!(post_id = %post.id, title = %post.title, "post updated");
+
         Ok(post)
     }
     async fn get(&self, id: Uuid) -> Result<Option<Post>, DomainError> {

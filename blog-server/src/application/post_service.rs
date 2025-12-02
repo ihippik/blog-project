@@ -17,6 +17,14 @@ where
         Self { repo }
     }
 
+    pub async fn create_post(&self, post: Post) -> Result<Post, DomainError> {
+        self.repo.create(post).await.map_err(DomainError::from)
+    }
+    pub async fn update_post(&self, post: Post) -> Result<Post, DomainError> {
+        let updated = self.repo.update(post).await.map_err(DomainError::from)?;
+        Ok(updated)
+    }
+
     pub async fn get_post(&self, id: uuid::Uuid) -> Result<Post, DomainError> {
         self.repo
             .get(id)
@@ -26,10 +34,7 @@ where
     }
 
     pub async fn delete_post(&self, id: uuid::Uuid) -> Result<(), DomainError> {
-        self.repo
-            .delete(id)
-            .await
-            .map_err(DomainError::from)?;
+        self.repo.delete(id).await.map_err(DomainError::from)?;
 
         Ok(())
     }
