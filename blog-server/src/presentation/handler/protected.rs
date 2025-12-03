@@ -1,11 +1,10 @@
 use crate::application::post_service::PostService;
 use crate::data::post_repository::PostgresPostRepository;
 use crate::domain::error::DomainError;
-use crate::domain::post::Post;
 use crate::presentation::auth::AuthenticatedUser;
 use crate::presentation::dto::{CreatePostRequest, PostResponse};
 use actix_web::{
-    HttpMessage, HttpRequest, HttpResponse, Responder, Scope, delete, get, post, put, web,
+    HttpMessage, HttpRequest, HttpResponse, Scope, delete, get, post, put, web,
 };
 use tracing::info;
 use uuid::Uuid;

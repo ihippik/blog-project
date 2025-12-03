@@ -18,6 +18,10 @@ use actix_cors::Cors;
 use actix_web::middleware::{DefaultHeaders, Logger};
 use actix_web::{App, HttpServer, web};
 use std::sync::Arc;
+use crate::presentation::grpc_service::GrpcService;
+use tonic::transport::Server;
+use tracing::info;
+use crate::presentation::blog::blog_service_server::BlogServiceServer;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -43,7 +47,11 @@ async fn main() -> std::io::Result<()> {
     );
     let post_service = PostService::new(Arc::clone(&post_repo));
 
-    HttpServer::new(move || {
+    let http_auth_service = auth_service.clone();
+    let http_post_service = post_service.clone();
+
+    // ---------- HTTP server ----------
+    let http_server = HttpServer::new(move || {
         let cors = build_cors(&config_data);
         App::new()
             .wrap(Logger::default())
@@ -56,21 +64,50 @@ async fn main() -> std::io::Result<()> {
                     .add(("Cross-Origin-Opener-Policy", "same-origin")),
             )
             .wrap(cors)
-            .app_data(web::Data::new(auth_service.clone()))
-            .app_data(web::Data::new(post_service.clone()))
+            .app_data(web::Data::new(http_auth_service.clone()))
+            .app_data(web::Data::new(http_post_service.clone()))
             .service(
                 web::scope("/api")
                     .service(web::scope("/public").service(handler::public::scope()))
                     .service(
                         web::scope("/protected")
-                            .wrap(JwtAuthMiddleware::new(auth_service.keys().clone()))
+                            .wrap(JwtAuthMiddleware::new(http_auth_service.keys().clone()))
                             .service(handler::protected::scope()),
                     ),
             )
     })
-    .bind((config.host.as_str(), config.port))?
-    .run()
-    .await
+    .bind((config.host.as_str(), config.http_port))?
+    .run();
+
+    // ---------- gRPC server ----------
+    let grpc_addr = format!("{}:{}", config.host, config.grpc_port)
+        .parse()
+        .expect("invalid grpc addr");
+
+    let grpc_service = GrpcService::new(post_service.clone(), auth_service.clone());
+
+    let grpc_server = Server::builder()
+        .add_service(BlogServiceServer::new(grpc_service))
+        .serve(grpc_addr);
+
+    info!(host=config.host ,port=config.grpc_port, "staring gRPC server");
+
+    tokio::select!{
+        http_res = http_server => {
+            if let Err(e) = http_res {
+                eprintln!("HTTP server error: {e}");
+                return Err(e);
+            }
+        }
+        grpc_res = grpc_server => {
+            if let Err(e) = grpc_res {
+                eprintln!("gRPC server error: {e}");
+                return Err(std::io::Error::new(std::io::ErrorKind::Other, e));
+            }
+        }
+    }
+
+    Ok(())
 }
 
 fn build_cors(config: &AppConfig) -> Cors {

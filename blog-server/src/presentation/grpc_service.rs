@@ -8,13 +8,13 @@ use crate::domain::error::DomainError;
 use crate::presentation::blog::blog_service_server::BlogService;
 use crate::presentation::blog::{EmptyResponse, GetPostRequest, ListPostRequest, ListPostsResponse, LoginRequest, LoginResponse, Post, PostResponse, RegisterRequest, RegisterResponse, UpdatePostRequest};
 
-struct GrpcService {
+pub struct GrpcService {
     post: PostService<PostgresPostRepository>,
     auth: AuthService<PostgresUserRepository>,
 }
 
 impl GrpcService {
-    fn new(post: PostService<PostgresPostRepository>,auth: AuthService<PostgresUserRepository>) -> Self {
+    pub fn new(post: PostService<PostgresPostRepository>,auth: AuthService<PostgresUserRepository>) -> Self {
         Self { post,auth }
     }
 }
