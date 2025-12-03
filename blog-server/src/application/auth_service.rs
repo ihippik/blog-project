@@ -53,12 +53,12 @@ where
             .find_by_email(&email.to_lowercase())
             .await
             .map_err(DomainError::from)?
-            .ok_or_else(|| DomainError::Forbidden("email / pass are incorrect".to_string()))?;
+            .ok_or_else(|| DomainError::InvalidCredentials("email / pass are incorrect".to_string()))?;
 
         let valid = verify_password(password, &user.password_hash)
             .map_err(|e| DomainError::Internal(e.to_string()))?;
         if !valid {
-            return Err(DomainError::Forbidden(
+            return Err(DomainError::InvalidCredentials(
                 "email / pass are incorrect".to_string(),
             ));
         }

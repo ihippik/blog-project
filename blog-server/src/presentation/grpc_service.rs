@@ -5,7 +5,6 @@ use crate::data::post_repository::{PostgresPostRepository};
 use crate::application::post_service::PostService;
 use crate::data::user_repository::PostgresUserRepository;
 use crate::domain::error::DomainError;
-use crate::presentation::blog::blog_service_server::BlogService;
 use crate::presentation::blog::{EmptyResponse, GetPostRequest, ListPostRequest, ListPostsResponse, LoginRequest, LoginResponse, Post, PostResponse, RegisterRequest, RegisterResponse, UpdatePostRequest};
 
 pub struct GrpcService {
@@ -41,6 +40,11 @@ impl BlogService for GrpcService {
     }
 
     async fn get_post(&self, request: Request<GetPostRequest>) -> Result<Response<PostResponse>, Status> {
+        let token = extract_token(&request)?;
+        self.auth.keys()
+            .verify_token(&token)
+            .map_err(|_| Status::unauthenticated("invalid token"))?;
+
         let req = request.into_inner();
         let id =Uuid::parse_str(&req.id).map_err(|_| Status::invalid_argument("invalid id"))?;
         let post = self.post.get_post(id).await.map_err(to_status)?;
@@ -50,7 +54,12 @@ impl BlogService for GrpcService {
         }))
     }
 
-    async fn list_posts(&self, _: Request<ListPostRequest>) -> Result<Response<ListPostsResponse>, Status> {
+    async fn list_posts(&self, request: Request<ListPostRequest>) -> Result<Response<ListPostsResponse>, Status> {
+        let token = extract_token(&request)?;
+        self.auth.keys()
+            .verify_token(&token)
+            .map_err(|_| Status::unauthenticated("invalid token"))?;
+
         let posts = self.post.list_posts(Uuid::nil()).await.map_err(to_status)?;
         let response: Vec<Post> = posts
             .into_iter()
@@ -63,6 +72,11 @@ impl BlogService for GrpcService {
     }
 
     async fn update_post(&self, request: Request<UpdatePostRequest>) -> Result<Response<PostResponse>, Status> {
+        let token = extract_token(&request)?;
+        self.auth.keys()
+            .verify_token(&token)
+            .map_err(|_| Status::unauthenticated("invalid token"))?;
+
         let req = request.into_inner();
         let id =Uuid::parse_str(&req.id).map_err(|_| Status::invalid_argument("invalid id"))?;
         let post= self.post.update_post(id,req.title, req.content).await.map_err(to_status)?;
@@ -73,6 +87,11 @@ impl BlogService for GrpcService {
     }
 
     async fn delete_post(&self, request: Request<GetPostRequest>) -> Result<Response<EmptyResponse>, Status> {
+        let token = extract_token(&request)?;
+        self.auth.keys()
+            .verify_token(&token)
+            .map_err(|_| Status::unauthenticated("invalid token"))?;
+
         let req = request.into_inner();
         let id =Uuid::parse_str(&req.id).map_err(|_| Status::invalid_argument("invalid id"))?;
 
@@ -82,8 +101,12 @@ impl BlogService for GrpcService {
     }
 
     async fn create_post(&self, request: Request<Post>) -> Result<Response<PostResponse>, Status> {
-        let req = request.into_inner();
+        let token = extract_token(&request)?;
+        self.auth.keys()
+            .verify_token(&token)
+            .map_err(|_| Status::unauthenticated("invalid token"))?;
 
+        let req = request.into_inner();
         let post = self.post.create_post(req.title,req.content,Uuid::parse_str(&req.author_id)
             .map_err(|_| Status::invalid_argument("invalid author id"))?)
             .await.map_err(to_status)?;
@@ -135,6 +158,7 @@ impl From<DomainPost> for ProtoPost {
 
 use crate::presentation::blog::User as ProtoUser;
 use crate::domain::user::User as DomainUser;
+use crate::presentation::blog::blog_service_server::BlogService;
 
 impl From<DomainUser> for ProtoUser {
     fn from(p: DomainUser) -> Self {
@@ -144,5 +168,22 @@ impl From<DomainUser> for ProtoUser {
             email: p.email,
         }
     }
+}
+
+fn extract_token<T>(request: &Request<T>) -> Result<String, Status> {
+    let value = request.metadata()
+        .get("authorization")
+        .ok_or_else(|| Status::unauthenticated("authorization header missing"))?;
+
+    let auth_str = value
+        .to_str()
+        .map_err(|_| Status::unauthenticated("invalid authorization header"))?;
+
+    if !auth_str.starts_with("Bearer ") {
+        return Err(Status::unauthenticated("invalid authorization scheme"));
+    }
+
+    let token = auth_str.trim_start_matches("Bearer ").to_string();
+    Ok(token)
 }
 
