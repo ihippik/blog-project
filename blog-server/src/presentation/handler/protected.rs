@@ -45,16 +45,7 @@ async fn create_posts(
     post: web::Data<PostService<PostgresPostRepository>>,
     payload: web::Json<CreatePostRequest>,
 ) -> Result<HttpResponse, DomainError> {
-    let model = Post {
-        id: Uuid::new_v4(),
-        author_id: user.id,
-        title: payload.title.clone(),
-        content: payload.content.clone(),
-        created_at: Default::default(),
-        deleted_at: None,
-    };
-
-    let post = post.create_post(model).await?;
+    let post = post.create_post(payload.title.clone(),payload.content.clone(),user.id).await?;
     let response = PostResponse::from(post);
 
     info!(
@@ -94,14 +85,8 @@ async fn update_post(
 ) -> Result<HttpResponse, DomainError> {
     let id = path.into_inner();
     let payload = payload.into_inner();
-    let mut model = post.get_post(id).await?;
 
-    // обновляем поля из payload
-    model.title = payload.title;
-    model.content = payload.content;
-
-    let updated = post.update_post(model).await?;
-
+    let updated = post.update_post(id, payload.title, payload.content).await?;
     let response = PostResponse::from(updated);
 
     info!(

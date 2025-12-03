@@ -1,5 +1,5 @@
 use std::sync::Arc;
-
+use uuid::Uuid;
 use crate::data::post_repository::PostRepository;
 use crate::domain::error::DomainError;
 use crate::domain::post::Post;
@@ -17,11 +17,25 @@ where
         Self { repo }
     }
 
-    pub async fn create_post(&self, post: Post) -> Result<Post, DomainError> {
+    pub async fn create_post(&self, title: String, content: String, author_id: Uuid) -> Result<Post, DomainError> {
+        let model = Post::new(title, content, author_id);
+        let post = self.repo.create(model).await.map_err(DomainError::from)?;
+
         self.repo.create(post).await.map_err(DomainError::from)
     }
-    pub async fn update_post(&self, post: Post) -> Result<Post, DomainError> {
+    pub async fn update_post(&self, id: Uuid, title: String, content: String) -> Result<Post, DomainError> {
+        let mut post = self.repo
+            .get(id)
+            .await
+            .map_err(DomainError::from)?
+            .ok_or_else(|| DomainError::PostNotFound(format!("post id: {}", id)))?;
+
+        post.title = title;
+        post.content = content;
+
+
         let updated = self.repo.update(post).await.map_err(DomainError::from)?;
+
         Ok(updated)
     }
 
