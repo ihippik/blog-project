@@ -43,8 +43,8 @@ impl GrpcClient {
         password: &str,
     ) -> Result<AuthResponse, BlogClientError> {
         let req = LoginRequest{
-            email,
-            password,
+            email: email.to_string(),
+            password: password.to_string(),
         };
         let resp = self.inner.clone().login(Request::new(req)).await?;
         Ok(resp.into_inner().into())
@@ -153,7 +153,7 @@ impl From<RegisterResponse> for AuthResponse {
             token: None,
             user: Some(
                 User{
-                    id: user.id,
+                    id: Uuid::parse_str(user.id.as_str()).expect("invalid user id"),
                     username: user.username,
                     email: user.email,
                 }
