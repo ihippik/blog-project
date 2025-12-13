@@ -21,7 +21,7 @@ where
         let model = Post::new(title, content, author_id);
         let post = self.repo.create(model).await.map_err(DomainError::from)?;
 
-        self.repo.create(post).await.map_err(DomainError::from)
+        Ok(post)
     }
     pub async fn update_post(&self, id: Uuid, title: String, content: String) -> Result<Post, DomainError> {
         let mut post = self.repo

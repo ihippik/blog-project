@@ -32,7 +32,7 @@ impl PostRepository for PostgresPostRepository {
         sqlx::query(
             r#"
             INSERT INTO posts (id, author_id, title, content, created_at, deleted_at)
-            VALUES ($1, $2, $3, $4, $5)
+            VALUES ($1, $2, $3, $4, $5, $6)
             "#,
         )
         .bind(post.id)

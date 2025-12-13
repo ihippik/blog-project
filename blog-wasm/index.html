@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <title>Blog WASM</title>
+</head>
+<body>
+<h1>Blog WASM</h1>
+
+<section>
+    <h2>Статус</h2>
+    <div id="auth-status">Проверка...</div>
+    <button id="logout-btn" type="button">Выйти</button>
+</section>
+
+<section>
+    <h2>Регистрация</h2>
+    <form id="register-form">
+        <input id="reg-username" placeholder="Username" />
+        <input id="reg-email" placeholder="Email" type="email" />
+        <input id="reg-password" placeholder="Password" type="password" />
+        <button type="submit">Зарегистрироваться</button>
+    </form>
+</section>
+
+<section>
+    <h2>Вход</h2>
+    <form id="login-form">
+        <input id="login-username" placeholder="Username" />
+        <input id="login-password" placeholder="Password" type="password" />
+        <button type="submit">Войти</button>
+    </form>
+</section>
+
+<section>
+    <h2>Создать пост</h2>
+    <form id="create-post-form">
+        <input id="post-title" placeholder="Заголовок" />
+        <textarea id="post-content" placeholder="Содержание"></textarea>
+        <button type="submit">Опубликовать</button>
+    </form>
+</section>
+
+<section>
+    <h2>Посты</h2>
+    <div id="posts"></div>
+</section>
+
+<script type="module" src="main.js"></script>
+</body>
+</html>
