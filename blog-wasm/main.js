@@ -2,6 +2,11 @@ import init, { BlogApp } from "./pkg/blog_wasm.js";
 
 let app;
 
+function setPostsMessage(message) {
+    const postsEl = document.getElementById("posts");
+    postsEl.textContent = message;
+}
+
 async function refreshAuthStatus() {
     const statusEl = document.getElementById("auth-status");
     const isAuth = await app.isAuthenticated();
@@ -14,32 +19,43 @@ async function loadPosts() {
 
     try {
         const res = await app.loadPosts();
-        const posts = res; // JsValue уже объект/массив (serde-wasm-bindgen)
-
-        if (!Array.isArray(posts)) {
-            postsEl.textContent = "Неверный формат ответа";
-            console.log("posts response:", posts);
-            return;
-        }
+        const posts = Array.isArray(res) ? res : Object.values(res);
 
         postsEl.innerHTML = "";
+
         for (const p of posts) {
-            const div = document.createElement("div");
-            div.style.border = "1px solid #ccc";
-            div.style.margin = "4px";
-            div.style.padding = "4px";
+            console.log(p);
+            const postEl = document.createElement("div");
+            postEl.className = "post";
 
-            const title = document.createElement("strong");
+            const header = document.createElement("div");
+            header.className = "post-header";
+
+            const title = document.createElement("div");
+            title.className = "post-title";
             title.textContent = p.title || "(без заголовка)";
-            div.appendChild(title);
 
-            const content = document.createElement("p");
+            const meta = document.createElement("div");
+            meta.className = "post-meta";
+            meta.textContent = p.created_at
+                ? new Date(p.created_at).toLocaleString()
+                : "";
+
+            header.appendChild(title);
+            header.appendChild(meta);
+            postEl.appendChild(header);
+
+            const content = document.createElement("div");
+            content.className = "post-content";
             content.textContent = p.content || "";
-            div.appendChild(content);
+            postEl.appendChild(content);
 
-            // Для упрощения: кнопка удаления по id
             if (p.id != null) {
+                const actions = document.createElement("div");
+                actions.className = "post-actions";
+
                 const delBtn = document.createElement("button");
+                delBtn.className = "btn-danger";
                 delBtn.textContent = "Удалить";
                 delBtn.onclick = async () => {
                     try {
@@ -50,10 +66,16 @@ async function loadPosts() {
                         alert("Ошибка удаления");
                     }
                 };
-                div.appendChild(delBtn);
+
+                actions.appendChild(delBtn);
+                postEl.appendChild(actions);
             }
 
-            postsEl.appendChild(div);
+            postsEl.appendChild(postEl);
+        }
+
+        if (posts.length === 0) {
+            setPostsMessage("Постов пока нет");
         }
     } catch (e) {
         console.error(e);
@@ -62,17 +84,13 @@ async function loadPosts() {
 }
 
 async function main() {
-    // инициализация wasm-модуля
     await init();
-
-    // адрес API – подставь свой
     app = new BlogApp("http://localhost:8080");
-
-    // обработчики форм
 
     // Регистрация
     document.getElementById("register-form").addEventListener("submit", async (e) => {
         e.preventDefault();
+
         const username = document.getElementById("reg-username").value.trim();
         const email = document.getElementById("reg-email").value.trim();
         const password = document.getElementById("reg-password").value.trim();
@@ -85,6 +103,7 @@ async function main() {
         try {
             await app.register(username, email, password);
             await refreshAuthStatus();
+            await loadPosts(); // после регистрации сразу загружаем посты
             alert("Регистрация успешна");
         } catch (err) {
             console.error(err);
@@ -95,17 +114,19 @@ async function main() {
     // Логин
     document.getElementById("login-form").addEventListener("submit", async (e) => {
         e.preventDefault();
-        const username = document.getElementById("login-username").value.trim();
+
+        const email = document.getElementById("login-email").value.trim();
         const password = document.getElementById("login-password").value.trim();
 
-        if (!username || !password) {
+        if (!email || !password) {
             alert("Заполни все поля");
             return;
         }
 
         try {
-            await app.login(username, password);
+            await app.login(email, password);
             await refreshAuthStatus();
+            await loadPosts(); // после логина загружаем посты
             alert("Вход успешен");
         } catch (err) {
             console.error(err);
@@ -118,6 +139,7 @@ async function main() {
         try {
             app.logout();
             await refreshAuthStatus();
+            setPostsMessage("Вы вышли из системы. Войдите, чтобы увидеть посты.");
         } catch (e) {
             console.error(e);
         }
@@ -126,6 +148,7 @@ async function main() {
     // Создание поста
     document.getElementById("create-post-form").addEventListener("submit", async (e) => {
         e.preventDefault();
+
         const title = document.getElementById("post-title").value.trim();
         const content = document.getElementById("post-content").value.trim();
 
@@ -145,8 +168,14 @@ async function main() {
         }
     });
 
+    // Инициализация UI при заходе на страницу
     await refreshAuthStatus();
-    await loadPosts();
+    const isAuth = await app.isAuthenticated();
+    if (isAuth) {
+        await loadPosts();
+    } else {
+        setPostsMessage("Войдите, чтобы увидеть посты.");
+    }
 }
 
 main().catch(console.error);

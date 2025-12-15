@@ -1,5 +1,5 @@
 use gloo_net::http::Request;
-use serde::{Deserialize, Serialize};
+use serde::{Serialize, Deserialize};
 use serde_json::Value;
 use serde_wasm_bindgen as swb;
 use wasm_bindgen::prelude::*;
@@ -22,7 +22,7 @@ struct RegisterRequest {
 
 #[derive(Serialize)]
 struct LoginRequest {
-    username: String,
+    email: String,
     password: String,
 }
 
@@ -30,6 +30,16 @@ struct LoginRequest {
 struct PostPayload {
     title: String,
     content: String,
+}
+
+// Тип поста для десериализации ответа /api/protected/posts
+#[derive(Debug, Serialize, Deserialize)]
+struct Post {
+    id: String,
+    author_id: String,
+    title: String,
+    content: String,
+    created_at: String,
 }
 
 fn to_js_error<E: std::fmt::Display>(e: E) -> JsValue {
@@ -75,7 +85,6 @@ impl BlogApp {
         )
     }
 
-    /// Парсим ответ как JSON и возвращаем JsValue через serde-wasm-bindgen
     async fn response_to_jsvalue(resp: gloo_net::http::Response) -> Result<JsValue, JsValue> {
         let status = resp.status();
         if !resp.ok() {
@@ -88,7 +97,6 @@ impl BlogApp {
 
         let text = resp.text().await.map_err(to_js_error)?;
         if text.trim().is_empty() {
-            // пустой ответ
             return Ok(JsValue::UNDEFINED);
         }
 
@@ -105,7 +113,7 @@ impl BlogApp {
         &mut self,
         json: &Value,
     ) -> Result<(), JsValue> {
-        if let Some(token) = json.get("token").and_then(|t| t.as_str()) {
+        if let Some(token) = json.get("access_token").and_then(|t| t.as_str()) {
             self.set_token(token)?;
         }
         Ok(())
@@ -121,7 +129,6 @@ impl BlogApp {
 
 #[wasm_bindgen]
 impl BlogApp {
-    /// Конструктор: инициализация + попытка загрузить токен из localStorage
     #[wasm_bindgen(constructor)]
     pub fn new(addr: String) -> BlogApp {
         let token = get_token_from_storage().unwrap_or(None);
@@ -131,8 +138,6 @@ impl BlogApp {
         }
     }
 
-    /// Регистрация пользователя: username, email, password
-    /// Ожидаем, что сервер вернет JSON с полем "token"
     #[wasm_bindgen]
     pub async fn register(
         &mut self,
@@ -146,7 +151,7 @@ impl BlogApp {
             password,
         };
 
-        let url = self.url("/register"); // подстрой под свой backend
+        let url = self.url("/register");
 
         let resp = Request::post(&url)
             .header("Content-Type", "application/json")
@@ -156,7 +161,6 @@ impl BlogApp {
             .await
             .map_err(to_js_error)?;
 
-        // сначала получаем текст, чтобы вытащить токен, а потом вернем JSON в JS
         let status = resp.status();
         let text = resp.text().await.map_err(to_js_error)?;
         if status < 200 || status >= 300 {
@@ -171,15 +175,14 @@ impl BlogApp {
         swb::to_value(&json).map_err(to_js_error)
     }
 
-    /// Логин: username + password, сохранение токена
     #[wasm_bindgen]
     pub async fn login(
         &mut self,
-        username: String,
+        email: String,
         password: String,
     ) -> Result<JsValue, JsValue> {
-        let body = LoginRequest { username, password };
-        let url = self.url("/login"); // подстрой под свой backend
+        let body = LoginRequest { email, password };
+        let url = self.url("/api/public/auth/login");
 
         let resp = Request::post(&url)
             .header("Content-Type", "application/json")
@@ -203,24 +206,41 @@ impl BlogApp {
         swb::to_value(&json).map_err(to_js_error)
     }
 
-    /// Опционально — logout
     #[wasm_bindgen]
     pub fn logout(&mut self) -> Result<(), JsValue> {
         self.token = None;
         remove_token_from_storage()
     }
 
-    /// Загрузка всех постов (публичный endpoint)
     #[wasm_bindgen(js_name = "loadPosts")]
     pub async fn load_posts(&self) -> Result<JsValue, JsValue> {
-        let url = self.url("/posts"); // GET /posts
+        let token = self
+            .get_current_token()?
+            .ok_or_else(|| JsValue::from_str("Not authenticated"))?;
 
-        let resp = Request::get(&url).send().await.map_err(to_js_error)?;
+        let url = self.url("/api/protected/posts");
 
-        BlogApp::response_to_jsvalue(resp).await
+        let resp = Request::get(&url)
+            .header("Authorization", &format!("Bearer {}", token))
+            .send()
+            .await
+            .map_err(to_js_error)?;
+
+        let status = resp.status();
+        let text = resp.text().await.map_err(to_js_error)?;
+        if status < 200 || status >= 300 {
+            return Err(JsValue::from_str(&format!(
+                "Load posts failed ({}): {}",
+                status, text
+            )));
+        }
+
+        // 👇 ключ: десериализуем в Vec<Post>
+        let posts: Vec<Post> = serde_json::from_str(&text).map_err(to_js_error)?;
+        // и уже его превращаем в JsValue — в JS это будет Array<{id, title, ...}>
+        swb::to_value(&posts).map_err(to_js_error)
     }
 
-    /// Создание поста (нужен токен)
     #[wasm_bindgen(js_name = "createPost")]
     pub async fn create_post(
         &self,
@@ -232,7 +252,7 @@ impl BlogApp {
             .ok_or_else(|| JsValue::from_str("Not authenticated"))?;
 
         let body = PostPayload { title, content };
-        let url = self.url("/posts");
+        let url = self.url("/api/protected/posts");
 
         let resp = Request::post(&url)
             .header("Content-Type", "application/json")
@@ -246,7 +266,6 @@ impl BlogApp {
         BlogApp::response_to_jsvalue(resp).await
     }
 
-    /// Обновление поста
     #[wasm_bindgen(js_name = "updatePost")]
     pub async fn update_post(
         &self,
@@ -259,7 +278,7 @@ impl BlogApp {
             .ok_or_else(|| JsValue::from_str("Not authenticated"))?;
 
         let body = PostPayload { title, content };
-        let url = self.url(&format!("/posts/{}", id));
+        let url = self.url(&format!("/api/protected/posts/{}", id));
 
         let resp = Request::put(&url)
             .header("Content-Type", "application/json")
@@ -273,14 +292,13 @@ impl BlogApp {
         BlogApp::response_to_jsvalue(resp).await
     }
 
-    /// Удаление поста
     #[wasm_bindgen(js_name = "deletePost")]
     pub async fn delete_post(&self, id: String) -> Result<JsValue, JsValue> {
         let token = self
             .get_current_token()?
             .ok_or_else(|| JsValue::from_str("Not authenticated"))?;
 
-        let url = self.url(&format!("/posts/{}", id));
+        let url = self.url(&format!("/api/protected/posts/{}", id));
 
         let resp = Request::delete(&url)
             .header("Authorization", &format!("Bearer {}", token))
@@ -291,7 +309,6 @@ impl BlogApp {
         BlogApp::response_to_jsvalue(resp).await
     }
 
-    /// Проверка — есть ли токен
     #[wasm_bindgen(js_name = "isAuthenticated")]
     pub fn is_authenticated(&self) -> Result<JsValue, JsValue> {
         let has = self.token.is_some()
