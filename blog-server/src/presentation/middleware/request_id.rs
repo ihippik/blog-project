@@ -3,15 +3,24 @@ use actix_web::dev::{ServiceRequest, ServiceResponse};
 use actix_web::http::header::{HeaderName, HeaderValue};
 use actix_web::{Error, HttpMessage};
 use futures_util::future::LocalBoxFuture;
-use std::future::{Ready, ready};
+use std::future::{ready, Ready};
 use std::task::{Context, Poll};
 use uuid::Uuid;
 
+/// HTTP header name used for request identification.
 static REQUEST_ID_HEADER: HeaderName = HeaderName::from_static("x-request-id");
+
+/// Request identifier stored in request extensions.
 #[derive(Clone)]
 pub struct RequestId(pub String);
+
+/// Request ID middleware.
+///
+/// Attaches a request ID to each incoming request and
+/// propagates it via the `x-request-id` header.
 pub struct RequestIdMiddleware;
 
+/// Request ID middleware service.
 pub struct RequestIdService<S> {
     service: S,
 }
@@ -27,6 +36,7 @@ where
     type InitError = ();
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
+    /// Creates a new request ID service.
     fn new_transform(&self, service: S) -> Self::Future {
         ready(Ok(RequestIdService { service }))
     }
@@ -41,10 +51,15 @@ where
     type Error = Error;
     type Future = LocalBoxFuture<'static, Result<Self::Response, Self::Error>>;
 
+    /// Checks whether the underlying service is ready.
     fn poll_ready(&self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         self.service.poll_ready(cx)
     }
 
+    /// Processes an incoming request.
+    ///
+    /// Generates a request ID if missing and adds it to both
+    /// request extensions and response headers.
     fn call(&self, req: ServiceRequest) -> Self::Future {
         let request_id = req
             .headers()

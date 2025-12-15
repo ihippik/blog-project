@@ -125,17 +125,11 @@ fn to_status(err: DomainError) -> Status {
         DomainError::Validation(msg) =>
             Status::invalid_argument(msg),
 
-        DomainError::UserAlreadyExists(id) =>
-            Status::already_exists(format!("user already exists: {id}")),
-
         DomainError::UserNotFound(id) =>
             Status::not_found(format!("user not found: {id}")),
 
         DomainError::PostNotFound(id) =>
             Status::not_found(format!("post not found: {id}")),
-
-        DomainError::Forbidden(msg) =>
-            Status::permission_denied(msg),
 
         DomainError::InvalidCredentials(msg) =>
             Status::unauthenticated(msg),

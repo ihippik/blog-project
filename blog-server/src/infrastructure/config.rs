@@ -1,18 +1,39 @@
 use serde::Deserialize;
 
+/// Application configuration.
+///
+/// Loaded from environment variables.
 #[derive(Debug, Deserialize, Clone)]
 pub struct AppConfig {
+    /// Server host address.
     pub host: String,
+
+    /// HTTP server port.
     pub http_port: u16,
-    pub grpc_port:u16,
+
+    /// gRPC server port.
+    pub grpc_port: u16,
+
+    /// Database connection URL.
     pub database_url: String,
+
+    /// Secret key used for JWT signing.
     pub jwt_secret: String,
+
+    /// Allowed CORS origins.
+    ///
+    /// Defaults to `*` if not specified.
     #[serde(default)]
     pub cors_origins: Vec<String>,
+
+    /// Logging output format.
     pub log_format: String,
 }
 
 impl AppConfig {
+    /// Loads configuration from environment variables.
+    ///
+    /// Uses `.env` file if present.
     pub fn from_env() -> anyhow::Result<Self> {
         dotenvy::dotenv().ok();
 

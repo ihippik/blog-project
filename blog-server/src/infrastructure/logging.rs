@@ -1,8 +1,11 @@
 use tracing_log::LogTracer;
-use tracing_subscriber::{EnvFilter, fmt};
+use tracing_subscriber::{fmt, EnvFilter};
 
+/// Initializes application logging.
+///
+/// Supports text and JSON formats.
 pub fn init_logging(format: String) {
-    // setup logger globally.
+    // Set up log compatibility with `log` crate.
     LogTracer::init().expect("failed to set LogTracer");
 
     let filter = EnvFilter::try_from_default_env()

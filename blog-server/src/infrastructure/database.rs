@@ -1,6 +1,7 @@
-use sqlx::{PgPool, postgres::PgPoolOptions};
+use sqlx::{postgres::PgPoolOptions, PgPool};
 use tracing::info;
 
+/// Creates a PostgreSQL connection pool.
 pub async fn create_pool(database_url: &str) -> Result<PgPool, sqlx::Error> {
     let pool = PgPoolOptions::new()
         .max_connections(20)
@@ -8,10 +9,12 @@ pub async fn create_pool(database_url: &str) -> Result<PgPool, sqlx::Error> {
         .acquire_timeout(std::time::Duration::from_secs(5))
         .connect(database_url)
         .await?;
+
     info!("connected to PostgreSQL");
     Ok(pool)
 }
 
+/// Runs database migrations.
 pub async fn run_migrations(pool: &PgPool) -> Result<(), sqlx::Error> {
     info!("running database migrations");
     sqlx::migrate!().run(pool).await?;

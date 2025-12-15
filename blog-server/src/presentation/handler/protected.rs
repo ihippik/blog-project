@@ -4,11 +4,12 @@ use crate::domain::error::DomainError;
 use crate::presentation::auth::AuthenticatedUser;
 use crate::presentation::dto::{CreatePostRequest, PostResponse};
 use actix_web::{
-    HttpMessage, HttpRequest, HttpResponse, Scope, delete, get, post, put, web,
+    delete, get, post, put, web, HttpMessage, HttpRequest, HttpResponse, Scope,
 };
 use tracing::info;
 use uuid::Uuid;
 
+/// Returns the protected posts API scope.
 pub fn scope() -> Scope {
     web::scope("")
         .service(list_posts)
@@ -18,6 +19,7 @@ pub fn scope() -> Scope {
         .service(delete_post)
 }
 
+/// Lists posts of the authenticated user.
 #[get("/posts")]
 async fn list_posts(
     req: HttpRequest,
@@ -37,6 +39,7 @@ async fn list_posts(
     Ok(HttpResponse::Ok().json(response))
 }
 
+/// Creates a new post.
 #[post("/posts")]
 async fn create_posts(
     req: HttpRequest,
@@ -44,7 +47,14 @@ async fn create_posts(
     post: web::Data<PostService<PostgresPostRepository>>,
     payload: web::Json<CreatePostRequest>,
 ) -> Result<HttpResponse, DomainError> {
-    let post = post.create_post(payload.title.clone(),payload.content.clone(),user.id).await?;
+    let post = post
+        .create_post(
+            payload.title.clone(),
+            payload.content.clone(),
+            user.id,
+        )
+        .await?;
+
     let response = PostResponse::from(post);
 
     info!(
@@ -57,6 +67,7 @@ async fn create_posts(
     Ok(HttpResponse::Ok().json(response))
 }
 
+/// Returns a post by its ID.
 #[get("/posts/{id}")]
 async fn get_post(
     req: HttpRequest,
@@ -69,12 +80,13 @@ async fn get_post(
     info!(
         request_id = %request_id(&req),
         post_id = %response.id,
-        "post have gotten"
+        "post retrieved"
     );
 
     Ok(HttpResponse::Ok().json(response))
 }
 
+/// Updates an existing post.
 #[put("/posts/{id}")]
 async fn update_post(
     req: HttpRequest,
@@ -85,7 +97,10 @@ async fn update_post(
     let id = path.into_inner();
     let payload = payload.into_inner();
 
-    let updated = post.update_post(id, payload.title, payload.content).await?;
+    let updated = post
+        .update_post(id, payload.title, payload.content)
+        .await?;
+
     let response = PostResponse::from(updated);
 
     info!(
@@ -96,6 +111,8 @@ async fn update_post(
 
     Ok(HttpResponse::Ok().json(response))
 }
+
+/// Deletes a post by its ID.
 #[delete("/posts/{id}")]
 async fn delete_post(
     req: HttpRequest,
@@ -114,6 +131,7 @@ async fn delete_post(
     Ok(HttpResponse::Ok().json("{}"))
 }
 
+/// Returns the request identifier if present.
 fn request_id(req: &HttpRequest) -> String {
     req.extensions()
         .get::<crate::presentation::middleware::RequestId>()

@@ -6,21 +6,35 @@ use sqlx::{PgPool, Row};
 use tracing::{error, info};
 use uuid::Uuid;
 
+/// Post persistence abstraction.
+///
+/// Defines operations for storing and retrieving posts.
 #[async_trait]
 pub trait PostRepository: Send + Sync {
+    /// Persists a new post.
     async fn create(&self, post: Post) -> Result<Post, DomainError>;
+
+    /// Updates an existing post.
     async fn update(&self, post: Post) -> Result<Post, DomainError>;
+
+    /// Returns a post by its ID.
     async fn get(&self, id: Uuid) -> Result<Option<Post>, DomainError>;
+
+    /// Deletes a post by its ID.
     async fn delete(&self, id: Uuid) -> Result<(), DomainError>;
+
+    /// Returns posts authored by the given user.
     async fn list(&self, author_id: Uuid) -> Result<Vec<Post>, DomainError>;
 }
 
+/// PostgreSQL-backed post repository implementation.
 #[derive(Clone)]
 pub struct PostgresPostRepository {
     pool: PgPool,
 }
 
 impl PostgresPostRepository {
+    /// Creates a new PostgreSQL post repository.
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
@@ -28,6 +42,7 @@ impl PostgresPostRepository {
 
 #[async_trait]
 impl PostRepository for PostgresPostRepository {
+    /// Inserts a new post into the database.
     async fn create(&self, post: Post) -> Result<Post, DomainError> {
         sqlx::query(
             r#"
@@ -35,23 +50,24 @@ impl PostRepository for PostgresPostRepository {
             VALUES ($1, $2, $3, $4, $5, $6)
             "#,
         )
-        .bind(post.id)
-        .bind(post.author_id)
-        .bind(&post.title)
-        .bind(&post.content)
-        .bind(&post.created_at)
-        .bind(&post.deleted_at)
-        .execute(&self.pool)
-        .await
-        .map_err(|e| {
-            error!("failed to create user: {}", e);
-            DomainError::Internal(format!("database error: {}", e))
-        })?;
+            .bind(post.id)
+            .bind(post.author_id)
+            .bind(&post.title)
+            .bind(&post.content)
+            .bind(&post.created_at)
+            .bind(&post.deleted_at)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| {
+                error!("failed to create post: {}", e);
+                DomainError::Internal(format!("database error: {}", e))
+            })?;
 
         info!(post_id = %post.id, title = %post.title, "post created");
         Ok(post)
     }
 
+    /// Updates an existing post in the database.
     async fn update(&self, post: Post) -> Result<Post, DomainError> {
         sqlx::query(
             r#"
@@ -60,35 +76,36 @@ impl PostRepository for PostgresPostRepository {
             WHERE id = $1
             "#,
         )
-        .bind(post.id)
-        .bind(&post.title)
-        .bind(&post.content)
-        .execute(&self.pool)
-        .await
-        .map_err(|e| {
-            error!("failed to update post: {}", e);
-            DomainError::Internal(format!("database error: {}", e))
-        })?;
+            .bind(post.id)
+            .bind(&post.title)
+            .bind(&post.content)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| {
+                error!("failed to update post: {}", e);
+                DomainError::Internal(format!("database error: {}", e))
+            })?;
 
         info!(post_id = %post.id, title = %post.title, "post updated");
-
         Ok(post)
     }
+
+    /// Returns a post by its ID, if it exists.
     async fn get(&self, id: Uuid) -> Result<Option<Post>, DomainError> {
         let row = sqlx::query(
             r#"
-            SELECT id, author_id , title, content, created_at, deleted_at
+            SELECT id, author_id, title, content, created_at, deleted_at
             FROM posts
             WHERE id = $1
             "#,
         )
-        .bind(id)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(|e| {
-            error!("failed to find post by id {}: {}", id, e);
-            DomainError::Internal(format!("database error: {}", e))
-        })?;
+            .bind(id)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(|e| {
+                error!("failed to find post by id {}: {}", id, e);
+                DomainError::Internal(format!("database error: {}", e))
+            })?;
 
         Ok(row.map(|row| Post {
             id: row.get("id"),
@@ -100,16 +117,17 @@ impl PostRepository for PostgresPostRepository {
         }))
     }
 
+    /// Deletes a post by its ID.
     async fn delete(&self, id: Uuid) -> Result<(), DomainError> {
         let result = sqlx::query!(
             r#"
-        DELETE FROM posts WHERE id = $1
-        "#,
+            DELETE FROM posts WHERE id = $1
+            "#,
             id
         )
-        .execute(&self.pool)
-        .await
-        .map_err(|e| DomainError::Internal(e.to_string()))?;
+            .execute(&self.pool)
+            .await
+            .map_err(|e| DomainError::Internal(e.to_string()))?;
 
         if result.rows_affected() == 0 {
             return Err(DomainError::PostNotFound(id.to_string()));
@@ -118,29 +136,33 @@ impl PostRepository for PostgresPostRepository {
         Ok(())
     }
 
+    /// Returns all posts authored by the given user.
     async fn list(&self, author_id: Uuid) -> Result<Vec<Post>, DomainError> {
         let rows = sqlx::query(
             r#"
-            SELECT id, author_id, title, content,created_at, deleted_at
+            SELECT id, author_id, title, content, created_at, deleted_at
             FROM posts
             WHERE author_id = $1
             ORDER BY created_at DESC
             "#,
         )
-        .bind(author_id)
-        .fetch_all(&self.pool)
-        .await
-        .map_err(|e| {
-            error!("failed to list posts for author {}: {}", author_id, e);
-            DomainError::Internal(format!("database error: {}", e))
-        })?;
+            .bind(author_id)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| {
+                error!("failed to list posts for author {}: {}", author_id, e);
+                DomainError::Internal(format!("database error: {}", e))
+            })?;
 
-        rows.into_iter().map(map_row).collect::<Result<Vec<_>, _>>()
+        rows.into_iter().map(map_row).collect()
     }
 }
 
+/// Maps a database row to a post domain model.
 fn map_row(row: PgRow) -> Result<Post, DomainError> {
-    let decode_err = |e: sqlx::Error| DomainError::Internal(format!("row decode error: {}", e));
+    let decode_err = |e: sqlx::Error| {
+        DomainError::Internal(format!("row decode error: {}", e))
+    };
 
     Ok(Post {
         id: row.try_get("id").map_err(decode_err)?,

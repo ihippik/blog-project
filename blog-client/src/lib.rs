@@ -1,23 +1,39 @@
+/// Client error types.
 pub mod error;
+
+/// HTTP transport implementation.
 pub mod http_client;
+
+/// gRPC transport implementation.
 pub mod grpc_client;
+
+/// Client-side domain models.
 pub mod models;
 
+/// Generated gRPC protobuf definitions.
 pub mod blog {
     tonic::include_proto!("blog");
 }
 
 use std::sync::Arc;
-use error::BlogClientError;
-use http_client::HttpClient;
-use grpc_client::GrpcClient;
 
+use error::BlogClientError;
+use grpc_client::GrpcClient;
+use http_client::HttpClient;
+
+/// Transport configuration for the blog client.
 #[derive(Clone, Debug)]
 pub enum Transport {
+    /// Use the HTTP transport with the given base URL.
     Http(String),
+
+    /// Use the gRPC transport with the given server address.
     Grpc(String),
 }
 
+/// Blog API client.
+///
+/// Supports both HTTP and gRPC transports and manages an optional JWT token.
 #[derive(Clone)]
 pub struct BlogClient {
     transport: Transport,
@@ -27,6 +43,7 @@ pub struct BlogClient {
 }
 
 impl BlogClient {
+    /// Creates a new blog client for the given transport.
     pub async fn new(transport: Transport) -> Result<Self, BlogClientError> {
         let (http_client, grpc_client) = match &transport {
             Transport::Http(base_url) => {
@@ -47,14 +64,17 @@ impl BlogClient {
         })
     }
 
+    /// Sets the JWT token used for authenticated requests.
     pub fn set_token(&mut self, token: String) {
         self.token = Some(token);
     }
 
+    /// Returns the current JWT token, if present.
     pub fn get_token(&self) -> Option<&str> {
         self.token.as_deref()
     }
 
+    /// Registers a new user and stores the returned token, if any.
     pub async fn register(
         &mut self,
         username: String,
@@ -82,6 +102,7 @@ impl BlogClient {
         }
     }
 
+    /// Authenticates a user and stores the returned token, if any.
     pub async fn login(
         &mut self,
         username: String,
@@ -108,6 +129,9 @@ impl BlogClient {
         }
     }
 
+    /// Creates a new post.
+    ///
+    /// Requires a JWT token to be set.
     pub async fn create_post(
         &self,
         title: String,
@@ -118,28 +142,24 @@ impl BlogClient {
             .ok_or(BlogClientError::Unauthorized("token is missing".into()))?;
 
         match (&self.transport, &self.http_client, &self.grpc_client) {
-            (Transport::Http(_), Some(http), _) => {
-                http.create_post(token, &title, &content).await
-            }
-            (Transport::Grpc(_), _, Some(grpc)) => {
-                grpc.create_post(token, &title, &content).await
-            }
+            (Transport::Http(_), Some(http), _) => http.create_post(token, &title, &content).await,
+            (Transport::Grpc(_), _, Some(grpc)) => grpc.create_post(token, &title, &content).await,
             _ => Err(BlogClientError::InvalidState(
                 "transport not properly initialized".into(),
             )),
         }
     }
 
-    pub async fn get_post(
-        &self,
-        id: uuid::Uuid,
-    ) -> Result<models::Post, BlogClientError> {
+    /// Returns a post by its ID.
+    ///
+    /// Requires a JWT token to be set.
+    pub async fn get_post(&self, id: uuid::Uuid) -> Result<models::Post, BlogClientError> {
         let token = self
             .get_token()
             .ok_or(BlogClientError::Unauthorized("token is missing".into()))?;
 
         match (&self.transport, &self.http_client, &self.grpc_client) {
-            (Transport::Http(_), Some(http), _) => http.get_post(token,id).await,
+            (Transport::Http(_), Some(http), _) => http.get_post(token, id).await,
             (Transport::Grpc(_), _, Some(grpc)) => grpc.get_post(token, id).await,
             _ => Err(BlogClientError::InvalidState(
                 "transport not properly initialized".into(),
@@ -147,6 +167,9 @@ impl BlogClient {
         }
     }
 
+    /// Updates an existing post.
+    ///
+    /// Requires a JWT token to be set.
     pub async fn update_post(
         &self,
         id: uuid::Uuid,
@@ -158,22 +181,18 @@ impl BlogClient {
             .ok_or(BlogClientError::Unauthorized("token is missing".into()))?;
 
         match (&self.transport, &self.http_client, &self.grpc_client) {
-            (Transport::Http(_), Some(http), _) => {
-                http.update_post(token, id, &title, &content).await
-            }
-            (Transport::Grpc(_), _, Some(grpc)) => {
-                grpc.update_post(token, id, &title, &content).await
-            }
+            (Transport::Http(_), Some(http), _) => http.update_post(token, id, &title, &content).await,
+            (Transport::Grpc(_), _, Some(grpc)) => grpc.update_post(token, id, &title, &content).await,
             _ => Err(BlogClientError::InvalidState(
                 "transport not properly initialized".into(),
             )),
         }
     }
 
-    pub async fn delete_post(
-        &self,
-        id: uuid::Uuid,
-    ) -> Result<(), BlogClientError> {
+    /// Deletes a post by its ID.
+    ///
+    /// Requires a JWT token to be set.
+    pub async fn delete_post(&self, id: uuid::Uuid) -> Result<(), BlogClientError> {
         let token = self
             .get_token()
             .ok_or(BlogClientError::Unauthorized("token is missing".into()))?;
@@ -187,6 +206,9 @@ impl BlogClient {
         }
     }
 
+    /// Lists posts of the authenticated user.
+    ///
+    /// Requires a JWT token to be set.
     pub async fn list_posts(
         &self,
         limit: u32,
@@ -197,11 +219,9 @@ impl BlogClient {
             .ok_or(BlogClientError::Unauthorized("token is missing".into()))?;
 
         match (&self.transport, &self.http_client, &self.grpc_client) {
-            (Transport::Http(_), Some(http), _) => {
-                http.list_posts(token, limit, offset).await
-            }
+            (Transport::Http(_), Some(http), _) => http.list_posts(token, limit, offset).await,
             (Transport::Grpc(_), _, Some(grpc)) => {
-                grpc.list_posts(token).await // TODO (makarov): add limit offset
+                grpc.list_posts(token).await // TODO: add limit/offset to gRPC
             }
             _ => Err(BlogClientError::InvalidState(
                 "transport not properly initialized".into(),

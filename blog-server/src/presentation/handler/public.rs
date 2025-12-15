@@ -1,11 +1,14 @@
 use crate::application::auth_service::AuthService;
 use crate::data::user_repository::PostgresUserRepository;
 use crate::domain::error::DomainError;
-use crate::presentation::dto::{HealthResponse, LoginRequest, RegisterRequest, TokenResponse};
-use actix_web::{HttpResponse, Responder, Scope, post, web};
+use crate::presentation::dto::{
+    HealthResponse, LoginRequest, RegisterRequest, TokenResponse,
+};
+use actix_web::{post, web, HttpResponse, Responder, Scope};
 use chrono::Utc;
 use tracing::info;
 
+/// Returns the public API scope.
 pub fn scope() -> Scope {
     web::scope("")
         .route("/health", web::get().to(health))
@@ -13,6 +16,7 @@ pub fn scope() -> Scope {
         .service(login)
 }
 
+/// Health check endpoint.
 async fn health() -> impl Responder {
     HttpResponse::Ok().json(HealthResponse {
         status: "ok",
@@ -20,6 +24,7 @@ async fn health() -> impl Responder {
     })
 }
 
+/// Registers a new user.
 #[post("/auth/register")]
 async fn register(
     service: web::Data<AuthService<PostgresUserRepository>>,
@@ -42,12 +47,17 @@ async fn register(
     })))
 }
 
+/// Authenticates a user and returns a JWT.
 #[post("/auth/login")]
 async fn login(
     service: web::Data<AuthService<PostgresUserRepository>>,
     payload: web::Json<LoginRequest>,
 ) -> Result<impl Responder, DomainError> {
     let jwt = service.login(&payload.email, &payload.password).await?;
+
     info!(email = %payload.email, "user logged in");
-    Ok(HttpResponse::Ok().json(TokenResponse { access_token: jwt }))
+
+    Ok(HttpResponse::Ok().json(TokenResponse {
+        access_token: jwt,
+    }))
 }

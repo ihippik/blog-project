@@ -7,6 +7,9 @@ use crate::domain::error::DomainError;
 use crate::domain::user::User;
 use crate::infrastructure::security::{JwtKeys, hash_password, verify_password};
 
+/// Authentication service.
+///
+/// Handles user registration, login, and JWT token management.
 #[derive(Clone)]
 pub struct AuthService<R: UserRepository + 'static> {
     repo: Arc<R>,
@@ -17,14 +20,17 @@ impl<R> AuthService<R>
 where
     R: UserRepository + 'static,
 {
+    /// Creates a new authentication service.
     pub fn new(repo: Arc<R>, keys: JwtKeys) -> Self {
         Self { repo, keys }
     }
 
+    /// Returns JWT signing and verification keys.
     pub fn keys(&self) -> &JwtKeys {
         &self.keys
     }
 
+    /// Returns a user by ID.
     pub async fn get_user(&self, id: uuid::Uuid) -> Result<User, DomainError> {
         self.repo
             .find_by_id(id)
@@ -33,6 +39,9 @@ where
             .ok_or_else(|| DomainError::UserNotFound(format!("user {}", id)))
     }
 
+    /// Registers a new user.
+    ///
+    /// The password is hashed before storing.
     #[instrument(skip(self))]
     pub async fn register(
         &self,
@@ -46,6 +55,7 @@ where
         self.repo.create(user).await.map_err(DomainError::from)
     }
 
+    /// Authenticates a user and returns a JWT token.
     #[instrument(skip(self))]
     pub async fn login(&self, email: &str, password: &str) -> Result<String, DomainError> {
         let user = self
@@ -53,7 +63,9 @@ where
             .find_by_email(&email.to_lowercase())
             .await
             .map_err(DomainError::from)?
-            .ok_or_else(|| DomainError::InvalidCredentials("email / pass are incorrect".to_string()))?;
+            .ok_or_else(|| {
+                DomainError::InvalidCredentials("email / pass are incorrect".to_string())
+            })?;
 
         let valid = verify_password(password, &user.password_hash)
             .map_err(|e| DomainError::Internal(e.to_string()))?;

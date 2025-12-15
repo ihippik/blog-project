@@ -4,17 +4,22 @@ use crate::infrastructure::security::JwtKeys;
 use crate::presentation::auth::extract_user_from_token;
 use actix_service::{Service, Transform};
 use actix_web::dev::{ServiceRequest, ServiceResponse};
-use actix_web::{Error, HttpMessage, web};
-use futures_util::future::{LocalBoxFuture, Ready, ready};
+use actix_web::{web, Error, HttpMessage};
+use futures_util::future::{ready, LocalBoxFuture, Ready};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::task::{Context, Poll};
 
+/// JWT authentication middleware.
+///
+/// Validates the `Authorization` header, extracts the user from the JWT,
+/// and attaches it to the request extensions.
 pub struct JwtAuthMiddleware {
     keys: JwtKeys,
 }
 
 impl JwtAuthMiddleware {
+    /// Creates a new JWT authentication middleware.
     pub fn new(keys: JwtKeys) -> Self {
         Self { keys }
     }
@@ -31,6 +36,7 @@ where
     type Transform = JwtAuthService<S>;
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
+    /// Creates a new middleware service.
     fn new_transform(&self, service: S) -> Self::Future {
         ready(Ok(JwtAuthService {
             service: Rc::new(RefCell::new(service)),
@@ -39,6 +45,9 @@ where
     }
 }
 
+/// JWT authentication service.
+///
+/// Wraps an Actix service and performs JWT validation before request handling.
 pub struct JwtAuthService<S> {
     service: Rc<RefCell<S>>,
     keys: JwtKeys,
@@ -53,10 +62,15 @@ where
     type Error = Error;
     type Future = LocalBoxFuture<'static, Result<Self::Response, Self::Error>>;
 
+    /// Checks whether the underlying service is ready.
     fn poll_ready(&self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         self.service.borrow_mut().poll_ready(cx)
     }
 
+    /// Processes an incoming request.
+    ///
+    /// Extracts and validates the JWT token, resolves the authenticated user,
+    /// and stores it in the request extensions.
     fn call(&self, req: ServiceRequest) -> Self::Future {
         let keys = self.keys.clone();
         let service = Rc::clone(&self.service);
@@ -78,17 +92,21 @@ where
             let header = auth_header.ok_or_else(|| {
                 actix_web::error::ErrorUnauthorized("missing authorization header")
             })?;
+
             let token = header.strip_prefix("Bearer ").ok_or_else(|| {
                 actix_web::error::ErrorUnauthorized("invalid authorization header")
             })?;
 
-            let user = extract_user_from_token(token, &keys, auth_service.get_ref()).await?;
+            let user =
+                extract_user_from_token(token, &keys, auth_service.get_ref()).await?;
 
             req.extensions_mut().insert(user);
+
             let fut = {
                 let svc = service.borrow_mut();
                 svc.call(req)
             };
+
             let res = fut.await?;
             Ok(res)
         })
