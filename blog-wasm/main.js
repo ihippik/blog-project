@@ -10,12 +10,12 @@ function setPostsMessage(message) {
 async function refreshAuthStatus() {
     const statusEl = document.getElementById("auth-status");
     const isAuth = await app.isAuthenticated();
-    statusEl.textContent = isAuth ? "Залогинен" : "Не залогинен";
+    statusEl.textContent = isAuth ? "Logged in" : "Not logged in";
 }
 
 async function loadPosts() {
     const postsEl = document.getElementById("posts");
-    postsEl.textContent = "Загрузка...";
+    postsEl.textContent = "Loading...";
 
     try {
         const res = await app.loadPosts();
@@ -33,7 +33,7 @@ async function loadPosts() {
 
             const title = document.createElement("div");
             title.className = "post-title";
-            title.textContent = p.title || "(без заголовка)";
+            title.textContent = p.title || "(no title)";
 
             const meta = document.createElement("div");
             meta.className = "post-meta";
@@ -56,14 +56,14 @@ async function loadPosts() {
 
                 const delBtn = document.createElement("button");
                 delBtn.className = "btn-danger";
-                delBtn.textContent = "Удалить";
+                delBtn.textContent = "Delete";
                 delBtn.onclick = async () => {
                     try {
                         await app.deletePost(String(p.id));
                         await loadPosts();
                     } catch (e) {
                         console.error(e);
-                        alert("Ошибка удаления");
+                        alert("Delete error");
                     }
                 };
 
@@ -75,11 +75,11 @@ async function loadPosts() {
         }
 
         if (posts.length === 0) {
-            setPostsMessage("Постов пока нет");
+            setPostsMessage("No posts yet");
         }
     } catch (e) {
         console.error(e);
-        postsEl.textContent = "Ошибка загрузки постов";
+        postsEl.textContent = "Failed to load posts";
     }
 }
 
@@ -87,7 +87,7 @@ async function main() {
     await init();
     app = new BlogApp("http://localhost:8080");
 
-    // Регистрация
+    // Registration
     document.getElementById("register-form").addEventListener("submit", async (e) => {
         e.preventDefault();
 
@@ -96,22 +96,22 @@ async function main() {
         const password = document.getElementById("reg-password").value.trim();
 
         if (!username || !email || !password) {
-            alert("Заполни все поля");
+            alert("Please fill in all fields");
             return;
         }
 
         try {
             await app.register(username, email, password);
             await refreshAuthStatus();
-            await loadPosts(); // после регистрации сразу загружаем посты
-            alert("Регистрация успешна");
+            await loadPosts(); // load posts immediately after registration
+            alert("Registration successful");
         } catch (err) {
             console.error(err);
-            alert("Ошибка регистрации");
+            alert("Registration failed");
         }
     });
 
-    // Логин
+    // Login
     document.getElementById("login-form").addEventListener("submit", async (e) => {
         e.preventDefault();
 
@@ -119,18 +119,18 @@ async function main() {
         const password = document.getElementById("login-password").value.trim();
 
         if (!email || !password) {
-            alert("Заполни все поля");
+            alert("Please fill in all fields");
             return;
         }
 
         try {
             await app.login(email, password);
             await refreshAuthStatus();
-            await loadPosts(); // после логина загружаем посты
-            alert("Вход успешен");
+            await loadPosts(); // load posts immediately after login
+            alert("Login successful");
         } catch (err) {
             console.error(err);
-            alert("Ошибка входа");
+            alert("Login failed");
         }
     });
 
@@ -139,13 +139,13 @@ async function main() {
         try {
             app.logout();
             await refreshAuthStatus();
-            setPostsMessage("Вы вышли из системы. Войдите, чтобы увидеть посты.");
+            setPostsMessage("You have logged out. Log in to see posts.");
         } catch (e) {
             console.error(e);
         }
     });
 
-    // Создание поста
+    // Create post
     document.getElementById("create-post-form").addEventListener("submit", async (e) => {
         e.preventDefault();
 
@@ -153,7 +153,7 @@ async function main() {
         const content = document.getElementById("post-content").value.trim();
 
         if (!title || !content) {
-            alert("Заполни заголовок и содержание");
+            alert("Please fill in the title and content");
             return;
         }
 
@@ -164,17 +164,17 @@ async function main() {
             await loadPosts();
         } catch (err) {
             console.error(err);
-            alert("Ошибка создания поста");
+            alert("Failed to create post");
         }
     });
 
-    // Инициализация UI при заходе на страницу
+    // Initialize UI on page load
     await refreshAuthStatus();
     const isAuth = await app.isAuthenticated();
     if (isAuth) {
         await loadPosts();
     } else {
-        setPostsMessage("Войдите, чтобы увидеть посты.");
+        setPostsMessage("Log in to see posts.");
     }
 }
 

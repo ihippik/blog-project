@@ -1,309 +1,6 @@
 <!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8" />
-    <title>Blog WASM</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-    <style>
-        :root {
-            --bg: #0f172a;
-            --bg-elevated: #020617;
-            --card-bg: #020617;
-            --card-border: #1e293b;
-            --accent: #3b82f6;
-            --accent-soft: rgba(59, 130, 246, 0.15);
-            --accent-hover: #2563eb;
-            --danger: #ef4444;
-            --danger-hover: #b91c1c;
-            --text: #e5e7eb;
-            --text-soft: #9ca3af;
-            --input-bg: #020617;
-            --input-border: #1f2937;
-            --radius-lg: 16px;
-            --shadow-soft: 0 18px 45px rgba(15, 23, 42, 0.75);
-        }
-
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-            margin: 0;
-            min-height: 100vh;
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
-            background: radial-gradient(circle at top, #1e293b 0, #020617 45%, #000 100%);
-            color: var(--text);
-            display: flex;
-            align-items: flex-start;
-            justify-content: center;
-            padding: 32px 16px;
-        }
-
-        .app-shell {
-            width: 100%;
-            max-width: 960px;
-            background: linear-gradient(155deg, rgba(15,23,42,0.96), rgba(15,23,42,0.98));
-            border-radius: 24px;
-            box-shadow: var(--shadow-soft);
-            border: 1px solid rgba(148, 163, 184, 0.2);
-            backdrop-filter: blur(18px);
-            padding: 24px 20px 28px;
-        }
-
-        @media (min-width: 768px) {
-            .app-shell {
-                padding: 28px 28px 32px;
-            }
-        }
-
-        .app-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-            margin-bottom: 24px;
-        }
-
-        .app-title {
-            font-size: 1.6rem;
-            font-weight: 700;
-            letter-spacing: 0.03em;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .app-title-badge {
-            font-size: 0.7rem;
-            text-transform: uppercase;
-            padding: 3px 8px;
-            border-radius: 999px;
-            border: 1px solid rgba(148, 163, 184, 0.4);
-            color: var(--text-soft);
-        }
-
-        .app-subtitle {
-            font-size: 0.9rem;
-            color: var(--text-soft);
-            margin-top: 4px;
-        }
-
-        .status-pill {
-            padding: 6px 10px;
-            border-radius: 999px;
-            font-size: 0.8rem;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            border: 1px solid rgba(148, 163, 184, 0.35);
-            background: rgba(15, 23, 42, 0.8);
-        }
-
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #22c55e;
-        }
-
-        /* Layout */
-
-        .layout {
-            display: grid;
-            grid-template-columns: 1.1fr 1.4fr;
-            gap: 20px;
-        }
-
-        @media (max-width: 900px) {
-            .layout {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .card {
-            background: var(--card-bg);
-            border-radius: var(--radius-lg);
-            border: 1px solid var(--card-border);
-            padding: 16px 16px 18px;
-        }
-
-        .card + .card {
-            margin-top: 10px;
-        }
-
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: baseline;
-            margin-bottom: 12px;
-        }
-
-        .card-title {
-            font-size: 0.95rem;
-            font-weight: 600;
-        }
-
-        .card-hint {
-            font-size: 0.75rem;
-            color: var(--text-soft);
-        }
-
-        /* Forms */
-
-        form {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .field-group {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        label {
-            font-size: 0.8rem;
-            color: var(--text-soft);
-        }
-
-        input,
-        textarea {
-            padding: 7px 9px;
-            border-radius: 10px;
-            border: 1px solid var(--input-border);
-            background: var(--input-bg);
-            color: var(--text);
-            font-size: 0.85rem;
-        }
-
-        input::placeholder,
-        textarea::placeholder {
-            color: rgba(148, 163, 184, 0.6);
-        }
-
-        textarea {
-            min-height: 80px;
-            resize: vertical;
-        }
-
-        button {
-            cursor: pointer;
-            border-radius: 999px;
-            border: none;
-            padding: 7px 14px;
-            font-size: 0.85rem;
-            font-weight: 500;
-            letter-spacing: 0.02em;
-            transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.12s ease, opacity 0.1s ease;
-        }
-
-        button:active {
-            transform: translateY(1px) scale(0.99);
-        }
-
-        .btn-primary {
-            background: var(--accent);
-            color: white;
-            box-shadow: 0 10px 18px rgba(59, 130, 246, 0.45);
-        }
-
-        .btn-primary:hover {
-            background: var(--accent-hover);
-        }
-
-        .btn-ghost {
-            background: transparent;
-            color: var(--text-soft);
-            border: 1px solid rgba(148, 163, 184, 0.5);
-        }
-
-        .btn-ghost:hover {
-            background: rgba(15, 23, 42, 0.8);
-            color: var(--text);
-        }
-
-        .btn-danger {
-            background: var(--danger);
-            color: #fee2e2;
-        }
-
-        .btn-danger:hover {
-            background: var(--danger-hover);
-        }
-
-        .btn-row {
-            display: flex;
-            justify-content: flex-end;
-            margin-top: 4px;
-        }
-
-        /* Posts */
-
-        #posts {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            font-size: 0.88rem;
-        }
-
-        .post {
-            border-radius: 14px;
-            border: 1px solid rgba(30, 64, 175, 0.6);
-            background: radial-gradient(circle at top left, rgba(37,99,235,0.22), #020617 55%);
-            padding: 10px 12px;
-        }
-
-        .post-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 4px;
-        }
-
-        .post-title {
-            font-weight: 600;
-        }
-
-        .post-meta {
-            font-size: 0.7rem;
-            color: var(--text-soft);
-        }
-
-        .post-content {
-            margin: 4px 0 6px;
-            line-height: 1.4;
-        }
-
-        .post-actions {
-            display: flex;
-            gap: 6px;
-            justify-content: flex-end;
-        }
-
-        /* Misc */
-
-        #auth-status {
-            font-size: 0.85rem;
-            color: var(--text-soft);
-        }
-
-        .top-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 8px;
-        }
-
-        .hint-text {
-            font-size: 0.75rem;
-            color: var(--text-soft);
-        }
-    </style>
-</head>
+<html lang="en">
+<head> <meta charset="UTF-8" /> <title>Blog WASM</title> <meta name="viewport" content="width=device-width, initial-scale=1" /> <style> :root { --bg: #0f172a; --bg-elevated: #020617; --card-bg: #020617; --card-border: #1e293b; --accent: #3b82f6; --accent-soft: rgba(59, 130, 246, 0.15); --accent-hover: #2563eb; --danger: #ef4444; --danger-hover: #b91c1c; --text: #e5e7eb; --text-soft: #9ca3af; --input-bg: #020617; --input-border: #1f2937; --radius-lg: 16px; --shadow-soft: 0 18px 45px rgba(15, 23, 42, 0.75); } * { box-sizing: border-box; } body { margin: 0; min-height: 100vh; font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; background: radial-gradient(circle at top, #1e293b 0, #020617 45%, #000 100%); color: var(--text); display: flex; align-items: flex-start; justify-content: center; padding: 32px 16px; } .app-shell { width: 100%; max-width: 960px; background: linear-gradient(155deg, rgba(15,23,42,0.96), rgba(15,23,42,0.98)); border-radius: 24px; box-shadow: var(--shadow-soft); border: 1px solid rgba(148, 163, 184, 0.2); backdrop-filter: blur(18px); padding: 24px 20px 28px; } @media (min-width: 768px) { .app-shell { padding: 28px 28px 32px; } } .app-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; } .app-title { font-size: 1.6rem; font-weight: 700; letter-spacing: 0.03em; display: flex; align-items: center; gap: 10px; } .app-title-badge { font-size: 0.7rem; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; border: 1px solid rgba(148, 163, 184, 0.4); color: var(--text-soft); } .app-subtitle { font-size: 0.9rem; color: var(--text-soft); margin-top: 4px; } .status-pill { padding: 6px 10px; border-radius: 999px; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 6px; border: 1px solid rgba(148, 163, 184, 0.35); background: rgba(15, 23, 42, 0.8); } .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; } /* Layout */ .layout { display: grid; grid-template-columns: 1.1fr 1.4fr; gap: 20px; } @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } } .card { background: var(--card-bg); border-radius: var(--radius-lg); border: 1px solid var(--card-border); padding: 16px 16px 18px; } .card + .card { margin-top: 10px; } .card-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; } .card-title { font-size: 0.95rem; font-weight: 600; } .card-hint { font-size: 0.75rem; color: var(--text-soft); } /* Forms */ form { display: flex; flex-direction: column; gap: 8px; } .field-group { display: flex; flex-direction: column; gap: 4px; } label { font-size: 0.8rem; color: var(--text-soft); } input, textarea { padding: 7px 9px; border-radius: 10px; border: 1px solid var(--input-border); background: var(--input-bg); color: var(--text); font-size: 0.85rem; } input::placeholder, textarea::placeholder { color: rgba(148, 163, 184, 0.6); } textarea { min-height: 80px; resize: vertical; } button { cursor: pointer; border-radius: 999px; border: none; padding: 7px 14px; font-size: 0.85rem; font-weight: 500; letter-spacing: 0.02em; transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.12s ease, opacity 0.1s ease; } button:active { transform: translateY(1px) scale(0.99); } .btn-primary { background: var(--accent); color: white; box-shadow: 0 10px 18px rgba(59, 130, 246, 0.45); } .btn-primary:hover { background: var(--accent-hover); } .btn-ghost { background: transparent; color: var(--text-soft); border: 1px solid rgba(148, 163, 184, 0.5); } .btn-ghost:hover { background: rgba(15, 23, 42, 0.8); color: var(--text); } .btn-danger { background: var(--danger); color: #fee2e2; } .btn-danger:hover { background: var(--danger-hover); } .btn-row { display: flex; justify-content: flex-end; margin-top: 4px; } /* Posts */ #posts { display: flex; flex-direction: column; gap: 10px; font-size: 0.88rem; } .post { border-radius: 14px; border: 1px solid rgba(30, 64, 175, 0.6); background: radial-gradient(circle at top left, rgba(37,99,235,0.22), #020617 55%); padding: 10px 12px; } .post-header { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 4px; } .post-title { font-weight: 600; } .post-meta { font-size: 0.7rem; color: var(--text-soft); } .post-content { margin: 4px 0 6px; line-height: 1.4; } .post-actions { display: flex; gap: 6px; justify-content: flex-end; } /* Misc */ #auth-status { font-size: 0.85rem; color: var(--text-soft); } .top-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px; } .hint-text { font-size: 0.75rem; color: var(--text-soft); } </style> </head>
 <body>
 <div class="app-shell">
     <header class="app-header">
@@ -313,38 +10,38 @@
                 <span class="app-title-badge">frontend</span>
             </div>
             <div class="app-subtitle">
-                JWT логин, посты и CRUD через Rust + WebAssembly
+                JWT login, posts, and CRUD via Rust + WebAssembly
             </div>
         </div>
         <div class="status-pill">
             <span class="status-dot"></span>
-            <span id="auth-status">Проверка...</span>
+            <span id="auth-status">Checking...</span>
         </div>
     </header>
 
     <div class="layout">
-        <!-- Левая колонка: auth -->
+        <!-- Left column: auth -->
         <div>
             <div class="card">
                 <div class="top-row">
-                    <div class="card-title">Аккаунт</div>
+                    <div class="card-title">Account</div>
                     <button id="logout-btn" class="btn-ghost" type="button">
-                        Выйти
+                        Log out
                     </button>
                 </div>
                 <div class="hint-text">
-                    Выйти из текущей сессии и удалить токен из браузера.
+                    Log out of the current session and remove the token from the browser.
                 </div>
             </div>
 
             <div class="card">
                 <div class="card-header">
-                    <div class="card-title">Регистрация</div>
-                    <div class="card-hint">Создаёт пользователя и сохраняет JWT</div>
+                    <div class="card-title">Registration</div>
+                    <div class="card-hint">Creates a user and stores the JWT</div>
                 </div>
                 <form id="register-form">
                     <div class="field-group">
-                        <label for="reg-username">Имя</label>
+                        <label for="reg-username">Name</label>
                         <input id="reg-username" placeholder="username" />
                     </div>
 
@@ -354,20 +51,20 @@
                     </div>
 
                     <div class="field-group">
-                        <label for="reg-password">Пароль</label>
+                        <label for="reg-password">Password</label>
                         <input id="reg-password" type="password" placeholder="••••••••" />
                     </div>
 
                     <div class="btn-row">
-                        <button type="submit" class="btn-primary">Регистрация</button>
+                        <button type="submit" class="btn-primary">Register</button>
                     </div>
                 </form>
             </div>
 
             <div class="card">
                 <div class="card-header">
-                    <div class="card-title">Вход</div>
-                    <div class="card-hint">Получение JWT токена</div>
+                    <div class="card-title">Login</div>
+                    <div class="card-hint">JWT token retrieval</div>
                 </div>
                 <form id="login-form">
                     <div class="field-group">
@@ -376,45 +73,45 @@
                     </div>
 
                     <div class="field-group">
-                        <label for="login-password">Пароль</label>
+                        <label for="login-password">Password</label>
                         <input id="login-password" type="password" placeholder="••••••••" />
                     </div>
 
                     <div class="btn-row">
-                        <button type="submit" class="btn-primary">Войти</button>
+                        <button type="submit" class="btn-primary">Log in</button>
                     </div>
                 </form>
             </div>
         </div>
 
-        <!-- Правая колонка: посты -->
+        <!-- Right column: posts -->
         <div>
             <div class="card">
                 <div class="card-header">
-                    <div class="card-title">Новый пост</div>
-                    <div class="card-hint">Только для аутентифицированных</div>
+                    <div class="card-title">New Post</div>
+                    <div class="card-hint">Authenticated users only</div>
                 </div>
                 <form id="create-post-form">
                     <div class="field-group">
-                        <label for="post-title">Заголовок</label>
-                        <input id="post-title" placeholder="Например: Мой первый пост" />
+                        <label for="post-title">Title</label>
+                        <input id="post-title" placeholder="For example: My first post" />
                     </div>
 
                     <div class="field-group">
-                        <label for="post-content">Текст</label>
-                        <textarea id="post-content" placeholder="Содержание поста..."></textarea>
+                        <label for="post-content">Content</label>
+                        <textarea id="post-content" placeholder="Post content..."></textarea>
                     </div>
 
                     <div class="btn-row">
-                        <button type="submit" class="btn-primary">Опубликовать</button>
+                        <button type="submit" class="btn-primary">Publish</button>
                     </div>
                 </form>
             </div>
 
             <div class="card" style="margin-top: 10px;">
                 <div class="card-header">
-                    <div class="card-title">Посты</div>
-                    <div class="card-hint">Список последних постов</div>
+                    <div class="card-title">Posts</div>
+                    <div class="card-hint">List of recent posts</div>
                 </div>
                 <div id="posts"></div>
             </div>
