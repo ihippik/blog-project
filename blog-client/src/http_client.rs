@@ -35,7 +35,7 @@ impl HttpClient {
 
         let resp = self
             .client
-            .post(self.url("/api/register")) // подправь под свои ручки
+            .post(self.url("/api/public/auth/register")) // подправь под свои ручки
             .json(&body)
             .send()
             .await?
@@ -46,17 +46,17 @@ impl HttpClient {
 
     pub async fn login(
         &self,
-        username: &str,
+        email: &str,
         password: &str,
     ) -> Result<AuthResponse, BlogClientError> {
         let body = serde_json::json!({
-            "username": username,
+            "email": email,
             "password": password,
         });
 
         let resp = self
             .client
-            .post(self.url("/api/login"))
+            .post(self.url("/api/public/auth/login"))
             .json(&body)
             .send()
             .await?
@@ -78,7 +78,7 @@ impl HttpClient {
 
         let resp = self
             .client
-            .post(self.url("/api/posts"))
+            .post(self.url("/api/protected/posts"))
             .bearer_auth(token)
             .json(&body)
             .send()
@@ -88,10 +88,11 @@ impl HttpClient {
         Ok(resp.json().await?)
     }
 
-    pub async fn get_post(&self, id: Uuid) -> Result<Post, BlogClientError> {
+    pub async fn get_post(&self,token: &str, id: Uuid) -> Result<Post, BlogClientError> {
         let resp = self
             .client
-            .get(self.url(&format!("/api/posts/{id}")))
+            .get(self.url(&format!("/api/protected/posts/{id}")))
+            .bearer_auth(token)
             .send()
             .await?
             .error_for_status()?;
@@ -113,7 +114,7 @@ impl HttpClient {
 
         let resp = self
             .client
-            .put(self.url(&format!("/api/posts/{id}")))
+            .put(self.url(&format!("/api/protected/posts/{id}")))
             .bearer_auth(token)
             .json(&body)
             .send()
@@ -129,7 +130,7 @@ impl HttpClient {
         id: Uuid,
     ) -> Result<(), BlogClientError> {
         self.client
-            .delete(self.url(&format!("/api/posts/{id}")))
+            .delete(self.url(&format!("/api/protected/posts/{id}")))
             .bearer_auth(token)
             .send()
             .await?
@@ -140,12 +141,14 @@ impl HttpClient {
 
     pub async fn list_posts(
         &self,
+        token: &str,
         limit: u32,
         offset: u32,
     ) -> Result<Vec<Post>, BlogClientError> {
         let resp = self
             .client
-            .get(self.url("/api/posts"))
+            .get(self.url("/api/protected/posts"))
+            .bearer_auth(token)
             .query(&[("limit", limit), ("offset", offset)])
             .send()
             .await?

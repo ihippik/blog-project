@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthResponse {
-    pub token: Option<String>,
+    pub access_token: Option<String>,
     pub user: Option<User>,
 }
 

@@ -64,14 +64,14 @@ impl BlogClient {
         match (&self.transport, &self.http_client, &self.grpc_client) {
             (Transport::Http(_), Some(http), _) => {
                 let resp = http.register(&username, &email, &password).await?;
-                if let Some(token) = &resp.token {
+                if let Some(token) = &resp.access_token {
                     self.set_token(token.clone());
                 }
                 Ok(resp)
             }
             (Transport::Grpc(_), _, Some(grpc)) => {
                 let resp = grpc.register(&username, &email, &password).await?;
-                if let Some(token) = &resp.token {
+                if let Some(token) = &resp.access_token {
                     self.set_token(token.clone());
                 }
                 Ok(resp)
@@ -90,14 +90,14 @@ impl BlogClient {
         match (&self.transport, &self.http_client, &self.grpc_client) {
             (Transport::Http(_), Some(http), _) => {
                 let resp = http.login(&username, &password).await?;
-                if let Some(token) = &resp.token {
+                if let Some(token) = &resp.access_token {
                     self.set_token(token.clone());
                 }
                 Ok(resp)
             }
             (Transport::Grpc(_), _, Some(grpc)) => {
                 let resp = grpc.login(&username, &password).await?;
-                if let Some(token) = &resp.token {
+                if let Some(token) = &resp.access_token {
                     self.set_token(token.clone());
                 }
                 Ok(resp)
@@ -139,8 +139,8 @@ impl BlogClient {
             .ok_or(BlogClientError::Unauthorized("token is missing".into()))?;
 
         match (&self.transport, &self.http_client, &self.grpc_client) {
-            (Transport::Http(_), Some(http), _) => http.get_post(id).await,
-            (Transport::Grpc(_), _, Some(grpc)) => grpc.get_post(id).await,
+            (Transport::Http(_), Some(http), _) => http.get_post(token,id).await,
+            (Transport::Grpc(_), _, Some(grpc)) => grpc.get_post(token, id).await,
             _ => Err(BlogClientError::InvalidState(
                 "transport not properly initialized".into(),
             )),
@@ -180,7 +180,7 @@ impl BlogClient {
 
         match (&self.transport, &self.http_client, &self.grpc_client) {
             (Transport::Http(_), Some(http), _) => http.delete_post(token, id).await,
-            (Transport::Grpc(_), _, Some(grpc)) => grpc.delete_post(id).await,
+            (Transport::Grpc(_), _, Some(grpc)) => grpc.delete_post(token, id).await,
             _ => Err(BlogClientError::InvalidState(
                 "transport not properly initialized".into(),
             )),
@@ -198,10 +198,10 @@ impl BlogClient {
 
         match (&self.transport, &self.http_client, &self.grpc_client) {
             (Transport::Http(_), Some(http), _) => {
-                http.list_posts(limit, offset).await
+                http.list_posts(token, limit, offset).await
             }
             (Transport::Grpc(_), _, Some(grpc)) => {
-                grpc.list_posts().await // TODO (makarov): add limit offset
+                grpc.list_posts(token).await // TODO (makarov): add limit offset
             }
             _ => Err(BlogClientError::InvalidState(
                 "transport not properly initialized".into(),

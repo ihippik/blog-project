@@ -12,7 +12,7 @@ const TOKEN_FILE: &str = ".blog_token";
 
 #[derive(Parser, Debug)]
 #[command(name = "blog-cli")]
-#[command(about = "CLI клиент для blog-сервера (HTTP/gRPC)", long_about = None)]
+#[command(about = "CLI client for the blog server (HTTP/gRPC)", long_about = None)]
 struct Cli {
     #[arg(long)]
     grpc: bool,
@@ -36,7 +36,7 @@ enum Commands {
     },
     Login {
         #[arg(long)]
-        username: String,
+        email: String,
         #[arg(long)]
         password: String,
     },
@@ -90,7 +90,9 @@ async fn main() -> Result<()> {
         Transport::Http(server_addr)
     };
 
-    let mut client = BlogClient::new(transport).await.map_err(map_client_err)?;
+    let mut client = BlogClient::new(transport)
+        .await
+        .map_err(map_client_err)?;
 
     if let Some(token) = load_token() {
         client.set_token(token);
@@ -98,46 +100,67 @@ async fn main() -> Result<()> {
 
     match cli.command {
         Commands::Register { username, email, password } => {
-            let resp = client.register(username.clone(), email, password).await.map_err(map_client_err)?;
-            if let Some(token) = resp.token.as_ref() {
+            let resp = client
+                .register(username.clone(), email, password)
+                .await
+                .map_err(map_client_err)?;
+
+            if let Some(token) = resp.access_token.as_ref() {
                 save_token(token)?;
-                println!("✅ Зарегистрирован пользователь, токен сохранён.");
+                println!("✅ User registered, token saved.");
             } else {
-                println!("⚠ Регистрация прошла, но токен не получен.");
+                println!("⚠ Registration succeeded, but no token was returned.");
             }
+
             if let Some(user) = resp.user {
                 println!("user: {} <{}>", user.username, user.email);
             }
         }
 
-        Commands::Login { username, password } => {
-            let resp = client.login(username.clone(), password).await.map_err(map_client_err)?;
-            if let Some(token) = resp.token.as_ref() {
+        Commands::Login { email, password } => {
+            let resp = client
+                .login(email.clone(), password)
+                .await
+                .map_err(map_client_err)?;
+
+            if let Some(token) = resp.access_token.as_ref() {
                 save_token(token)?;
-                println!("✅ Успешный вход, токен сохранён.");
+                println!("✅ Login successful, token saved.");
             } else {
-                println!("⚠ Логин успешен, но токен не получен.");
+                println!("⚠ Login succeeded, but no token was returned.");
             }
+
             if let Some(user) = resp.user {
                 println!("user: {} <{}>", user.username, user.email);
             }
         }
 
         Commands::Create { title, content } => {
-            let post = client.create_post(title, content).await.map_err(map_client_err)?;
-            println!("✅ Пост создан:");
+            let post = client
+                .create_post(title, content)
+                .await
+                .map_err(map_client_err)?;
+
+            println!("✅ Post created:");
             print_post(&post);
         }
 
         Commands::Get { id } => {
             let id = parse_uuid(&id)?;
-            let post = client.get_post(id).await.map_err(map_client_err)?;
+            let post = client
+                .get_post(id)
+                .await
+                .map_err(map_client_err)?;
+
             print_post(&post);
         }
 
         Commands::Update { id, title, content } => {
             let id = parse_uuid(&id)?;
-            let mut post = client.get_post(id).await.map_err(map_client_err)?;
+            let mut post = client
+                .get_post(id)
+                .await
+                .map_err(map_client_err)?;
 
             if let Some(t) = title {
                 post.title = t;
@@ -151,18 +174,26 @@ async fn main() -> Result<()> {
                 .await
                 .map_err(map_client_err)?;
 
-            println!("✅ post created:");
+            println!("✅ Post updated:");
             print_post(&updated);
         }
 
         Commands::Delete { id } => {
             let id = parse_uuid(&id)?;
-            client.delete_post(id).await.map_err(map_client_err)?;
-            println!("🗑 Пост удалён.");
+            client
+                .delete_post(id)
+                .await
+                .map_err(map_client_err)?;
+
+            println!("🗑 Post deleted.");
         }
 
         Commands::List { limit, offset } => {
-            let posts = client.list_posts(limit, offset).await.map_err(map_client_err)?;
+            let posts = client
+                .list_posts(limit, offset)
+                .await
+                .map_err(map_client_err)?;
+
             if posts.is_empty() {
                 println!("(there are no posts yet)");
             } else {
@@ -185,6 +216,7 @@ fn load_token() -> Option<String> {
     if !Path::new(TOKEN_FILE).exists() {
         return None;
     }
+
     match fs::read_to_string(TOKEN_FILE) {
         Ok(s) => {
             let t = s.trim().to_string();
@@ -205,11 +237,12 @@ fn save_token(token: &str) -> io::Result<()> {
 }
 
 fn print_post(post: &blog_client::models::Post) {
-    println!("id:        {}", post.id);
-    println!("title:     {}", post.title);
-    println!("content:   {}", post.content);
-    println!("author_id: {}", post.author_id);
+    println!("id:         {}", post.id);
+    println!("title:      {}", post.title);
+    println!("content:    {}", post.content);
+    println!("author_id:  {}", post.author_id);
     println!("created_at: {}", post.created_at);
+
     if let Some(updated_at) = post.updated_at {
         println!("updated_at: {}", updated_at);
     }
@@ -218,4 +251,3 @@ fn print_post(post: &blog_client::models::Post) {
 fn map_client_err(err: BlogClientError) -> anyhow::Error {
     anyhow::anyhow!(err)
 }
-
