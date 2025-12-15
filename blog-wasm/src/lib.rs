@@ -1,9 +1,9 @@
 use gloo_net::http::Request;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use serde_wasm_bindgen as swb;
 use wasm_bindgen::prelude::*;
-use web_sys::{window, Storage};
+use web_sys::{Storage, window};
 
 const TOKEN_KEY: &str = "blog_token";
 
@@ -89,10 +89,7 @@ impl BlogApp {
         let status = resp.status();
         if !resp.ok() {
             let text = resp.text().await.unwrap_or_default();
-            return Err(JsValue::from_str(&format!(
-                "HTTP {}: {}",
-                status, text
-            )));
+            return Err(JsValue::from_str(&format!("HTTP {}: {}", status, text)));
         }
 
         let text = resp.text().await.map_err(to_js_error)?;
@@ -109,10 +106,7 @@ impl BlogApp {
         save_token_to_storage(token)
     }
 
-    fn extract_and_store_token(
-        &mut self,
-        json: &Value,
-    ) -> Result<(), JsValue> {
+    fn extract_and_store_token(&mut self, json: &Value) -> Result<(), JsValue> {
         if let Some(token) = json.get("access_token").and_then(|t| t.as_str()) {
             self.set_token(token)?;
         }
@@ -176,11 +170,7 @@ impl BlogApp {
     }
 
     #[wasm_bindgen]
-    pub async fn login(
-        &mut self,
-        email: String,
-        password: String,
-    ) -> Result<JsValue, JsValue> {
+    pub async fn login(&mut self, email: String, password: String) -> Result<JsValue, JsValue> {
         let body = LoginRequest { email, password };
         let url = self.url("/api/public/auth/login");
 
@@ -242,11 +232,7 @@ impl BlogApp {
     }
 
     #[wasm_bindgen(js_name = "createPost")]
-    pub async fn create_post(
-        &self,
-        title: String,
-        content: String,
-    ) -> Result<JsValue, JsValue> {
+    pub async fn create_post(&self, title: String, content: String) -> Result<JsValue, JsValue> {
         let token = self
             .get_current_token()?
             .ok_or_else(|| JsValue::from_str("Not authenticated"))?;
@@ -311,8 +297,7 @@ impl BlogApp {
 
     #[wasm_bindgen(js_name = "isAuthenticated")]
     pub fn is_authenticated(&self) -> Result<JsValue, JsValue> {
-        let has = self.token.is_some()
-            || get_token_from_storage().unwrap_or(None).is_some();
+        let has = self.token.is_some() || get_token_from_storage().unwrap_or(None).is_some();
         Ok(JsValue::from_bool(has))
     }
 }

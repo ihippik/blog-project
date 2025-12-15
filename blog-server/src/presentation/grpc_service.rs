@@ -1,4 +1,5 @@
 use tonic::{Request, Response, Status};
+use tracing_log::log::info;
 use uuid::Uuid;
 use crate::application::auth_service::AuthService;
 use crate::data::post_repository::{PostgresPostRepository};
@@ -56,15 +57,17 @@ impl BlogService for GrpcService {
 
     async fn list_posts(&self, request: Request<ListPostRequest>) -> Result<Response<ListPostsResponse>, Status> {
         let token = extract_token(&request)?;
-        self.auth.keys()
+        let claims = self.auth.keys()
             .verify_token(&token)
-            .map_err(|_| Status::unauthenticated("invalid token"))?;
-
-        let posts = self.post.list_posts(Uuid::nil()).await.map_err(to_status)?;
+            .map_err(|_| Status::unauthenticated("invalid token claims"))?;
+        let user_id = Uuid::parse_str(&claims.sub).map_err(|_| Status::unauthenticated("invalid token"))?;
+        let posts = self.post.list_posts(user_id).await.map_err(to_status)?;
         let response: Vec<Post> = posts
             .into_iter()
             .map(Into::into)
             .collect();
+
+        info!("grpc got {} posts", response.len());
 
         Ok(Response::new(ListPostsResponse{
             posts: response,
@@ -186,4 +189,3 @@ fn extract_token<T>(request: &Request<T>) -> Result<String, Status> {
     let token = auth_str.trim_start_matches("Bearer ").to_string();
     Ok(token)
 }
-
